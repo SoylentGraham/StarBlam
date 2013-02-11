@@ -22,7 +22,7 @@ public:
 class TPlayerMeta
 {
 public:
-	TPlayerMeta(const String& Name,const ofColour& Colour) :
+	TPlayerMeta(const TString& Name,const ofColour& Colour) :
 		mName	( Name ),
 		mColour	( Colour )
 	{
@@ -30,7 +30,7 @@ public:
 
 public:
 	ofColour	mColour;
-	String		mName;
+	TString		mName;
 };
 
 
@@ -39,19 +39,22 @@ class TPlayer
 public:
 	TPlayer() :
 		mMeta		( "", ofColour(0,0,0) ),
-		mDeathStar	( NULL )
+		mDeathStar	( NULL ),
+		mHealth		( 100 )
 	{
 	}
 		
 	TPlayer(const TPlayerMeta& Meta) :
 		mMeta		( Meta ),
-		mDeathStar	( NULL )
+		mDeathStar	( NULL ),
+		mHealth		( 100 )
 	{
 	}
 
 public:
 	TActorDeathStar*	mDeathStar;
 	TPlayerMeta			mMeta;
+	int					mHealth;
 };
 
 
@@ -91,11 +94,15 @@ protected:
 	void		OnDragEnded(TPlayerDrag& Drag);
 	void		UpdateDrag(TPlayerDrag& Drag);
 	
+	void		RenderWorld(float TimeStep);
+	void		RenderHud(float TimeStep);
+
 	void		UpdateGamePackets();
 	bool		OnPacket(TGamePacket& Packet);
 	void		OnPacket_FireRocket(TGamePacket_FireRocket& Packet);
 
 	vec2f		ScreenToWorld(const vec2f& Screen2,float Z);
+	vec2f		WorldToScreen(const vec3f& World3);
 
 public:
 	TGamePacketContainer	mGamePackets;

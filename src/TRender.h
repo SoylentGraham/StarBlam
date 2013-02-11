@@ -3,6 +3,12 @@
 #include "Main.h"
 
 
+namespace TRender
+{
+	extern ofTrueTypeFont	Font;
+	bool					InitFont();
+};
+
 namespace TRenderMode
 {
 	enum Type

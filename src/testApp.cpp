@@ -11,6 +11,9 @@ void testApp::setup()
 {
 	exit();
 
+	//	sys init
+	TRender::InitFont();
+
 	//	create new game
 	TPlayerMeta Player1("Emmett", ofColour(209,174,52) );
 	TPlayerMeta Player2("Biff", ofColour(226, 37, 37) );

@@ -38,9 +38,11 @@ public:
 	virtual void			RenderCollision(const TRenderSettings& RenderSettings);
 	virtual void			Update(float TimeStep,TWorld& World);
 	
+	vec3f					GetPosition3() const 			{	return mPosition;	}
+	vec2f					GetPosition2() const 			{	return vec2f( GetPosition3().x, GetPosition3().y );	}
 	void					SetPosition(const vec2f& Pos)	{	mPosition.x = Pos.x;	mPosition.y = Pos.y;	}
-	virtual ofColour		GetColour() const			{	return ofColour(255,255,0);	}
-	virtual TCollisionShape	GetCollisionShape() const	{	return TCollisionShape();	}
+	virtual ofColour		GetColour() const				{	return ofColour(255,255,0);	}
+	virtual TCollisionShape	GetCollisionShape() const		{	return TCollisionShape();	}
 
 public:
 	vec3f					mPosition;

@@ -2,7 +2,7 @@
 
 
 
-#define MIN_ROCKET_SPEED	100.f	//	unit/sec
+#define MIN_ROCKET_SPEED	400.f	//	unit/sec
 #define MAX_ROCKET_SPEED	400.f	//	unit/sec
 
 //ofShapeBox3 gWorldBox( vec3f(-1000,-600,0), vec3f(1000,600,1000) );
