@@ -1,13 +1,30 @@
 #include "TGame.h"
 
+namespace TLGame
+{
+	TRef AllocPlayerRef()
+	{
+		static TRef LastRef( 0 );
+		LastRef.mRef++;
+		return LastRef;
+	}
+}
 
 
+TPlayerMeta::TPlayerMeta(const TString& Name,const ofColour& Colour) :
+	mName	( Name ),
+	mColour	( Colour ),
+	mRef	( TLGame::AllocPlayerRef() )
+{
+}
 
 
 TGame::TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2)
 {
 	mPlayers.PushBack( Player1 );
 	mPlayers.PushBack( Player2 );
+
+	mCurrentPlayer = mPlayers[0].mRef;
 }
 
 bool TGame::Init()
@@ -25,7 +42,7 @@ bool TGame::Init()
 		auto& Player = mPlayers[p];
 
 		Player.mDeathStar = mWorld.CreateActor<TActorDeathStar>();
-		Player.mDeathStar->mMaterial.mColour = Player.mMeta.mColour;
+		Player.mDeathStar->mMaterial.mColour = Player.mColour;
 		Player.mDeathStar->SetPosition( PlayerPositions[p] );
 	}
 
@@ -164,6 +181,7 @@ void TGame::UpdateInput(SoyInput& Input)
 		{
 			//	new drag
 			pCurrentDrag = &mPendingDrags.PushBack();
+			pCurrentDrag->mPlayer = GetCurrentPlayer();
 			pCurrentDrag->mLine.mStart = ScreenToWorld( Gesture.mPath[0], GUI_Z );
 			pCurrentDrag->mLine.mEnd = ScreenToWorld( Gesture.mPath.GetBack(), GUI_Z );
 		}
@@ -199,6 +217,7 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 
 	TGamePacket_FireRocket Packet;
 	Packet.mFiringLine = Drag.mLine;
+	Packet.mPlayerRef = Drag.mPlayer;
 	mGamePackets.PushPacket( Packet );
 }
 
@@ -343,7 +362,7 @@ bool TGame::OnPacket(TGamePacket& Packet)
 void TGame::OnPacket_FireRocket(TGamePacket_FireRocket& Packet)
 {
 	//	create rocket actor
-	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine );
+	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Packet.mPlayerRef );
 }
 
 
@@ -401,6 +420,12 @@ void TGame::UpdateCollisions()
 
 void TGame::OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorDeathStar& ActorB)
 {
+	//	if the rocket hits it's owner player, ignore the collision
+	TPlayer* pPlayer = GetPlayer( ActorB.GetRef() );
+	assert( pPlayer );
+	if ( pPlayer && pPlayer->mRef == ActorA.mPlayerRef )
+		return;
+
 	//	kablammo!
 	TGamePacket_CollisionRocketPlayer Packet;
 	Packet.mActorRocket = ActorA;

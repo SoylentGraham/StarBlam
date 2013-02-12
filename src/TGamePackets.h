@@ -51,6 +51,7 @@ class TGamePacket_FireRocket : public TGamePacketDerivitive<TGamePackets::FireRo
 {
 public:
 	ofShapeLine2	mFiringLine;
+	TRef			mPlayerRef;
 };
 
 

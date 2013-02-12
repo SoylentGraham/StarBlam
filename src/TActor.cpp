@@ -135,9 +135,10 @@ void TActorDrag::SetLine(const ofShapeLine2& Line)
 
 
 
-TActorRocket::TActorRocket(const ofShapeLine2& FiringLine) :
+TActorRocket::TActorRocket(const ofShapeLine2& FiringLine,TRef PlayerRef) :
 	TActorDerivitive	( ROCKET_Z ),
-	mVelocity			( FiringLine.mEnd - FiringLine.mStart )
+	mVelocity			( FiringLine.mEnd - FiringLine.mStart ),
+	mPlayerRef			( PlayerRef )
 {
 	//	convert velocity to units/per sec
 	float VelSpeed = mVelocity.length();

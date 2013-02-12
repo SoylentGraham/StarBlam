@@ -14,10 +14,12 @@ public:
 	void			DoCollisions(Array<TCollisionActor>& CollisionActors);
 	TCollision		PopCollision();
 
-	template<class ACTORTYPE>
+	template<class ACTORTYPE>				
 	ACTORTYPE*		CreateActor();
-	template<class ACTORTYPE,typename P1>
+	template<class ACTORTYPE,typename P1>	
 	ACTORTYPE*		CreateActor(const P1& Param1);
+	template<class ACTORTYPE,typename P1,typename P2>	
+	ACTORTYPE*		CreateActor(const P1& Param1,const P2& Param2);
 	void			DestroyActor(TActor& Actor);
 	void			DestroyActor(const TActorRef ActorRef)	{	DestroyActor( GetActor( ActorRef ) );	}
 	TActor&			GetActor(const TActorRef& Actor)		{	return const_cast<TActor&>( *Actor.mActor );	}
@@ -47,6 +49,19 @@ template<class ACTORTYPE,typename P1>
 ACTORTYPE* TWorld::CreateActor(const P1& Param1)
 {
 	ACTORTYPE* pActor = new ACTORTYPE( Param1 );
+	if ( !pActor )
+		return NULL;
+
+	mActors.PushBack( pActor );
+	return pActor;
+}
+
+
+
+template<class ACTORTYPE,typename P1,typename P2>
+ACTORTYPE* TWorld::CreateActor(const P1& Param1,const P2& Param2)
+{
+	ACTORTYPE* pActor = new ACTORTYPE( Param1, Param2 );
 	if ( !pActor )
 		return NULL;
 

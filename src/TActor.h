@@ -39,16 +39,16 @@ public:
 		mActor	( NULL )
 	{
 	}
-	TActorRef(TActor& Actor) :
+	TActorRef(const TActor& Actor) :
 		mActor	( &Actor )
 	{
 	}
 	
-	bool		IsValid() const							{	return mActor != NULL;	}
-	inline bool	operator==(const TActor& Actor) const	{	return mActor == &Actor;	}
+	bool			IsValid() const							{	return mActor != NULL;	}
+	inline bool		operator==(const TActor& Actor) const	{	return mActor == &Actor;	}
 
 public:
-	TActor*		mActor;
+	const TActor*	mActor;
 };
 
 class TCollisionShape
@@ -71,6 +71,7 @@ public:
 	}
 
 	virtual TActors::Type	GetType() const=0;
+	TActorRef				GetRef() const					{	return TActorRef( *this );	}
 	virtual void			Render(float TimeStep,const TRenderSettings& RenderSettings);
 	virtual void			RenderCollision(const TRenderSettings& RenderSettings);
 	virtual bool			Update(float TimeStep,TWorld& World);		//	return false to die
@@ -153,13 +154,14 @@ public:
 class TActorRocket : public TActorDerivitive<TActors::Rocket>
 {
 public:
-	TActorRocket(const ofShapeLine2& FiringLine);
+	TActorRocket(const ofShapeLine2& FiringLine,TRef PlayerRef);
 
 	virtual bool			Update(float TimeStep,TWorld& World);
 	
 	virtual TCollisionShape	GetCollisionShape() const;
 
 public:
+	TRef				mPlayerRef;		//	player which fired this rocket so we can ignore collisions from the source player (ie. at firing time)
 	vec2f				mVelocity;
 };
 

@@ -22,38 +22,36 @@ public:
 class TPlayerMeta
 {
 public:
-	TPlayerMeta(const TString& Name,const ofColour& Colour) :
-		mName	( Name ),
-		mColour	( Colour )
-	{
-	}
+	TPlayerMeta(const TString& Name,const ofColour& Colour);
 
 public:
 	ofColour	mColour;
 	TString		mName;
+	TRef		mRef;
 };
 
 
-class TPlayer
+class TPlayer : public TPlayerMeta
 {
 public:
 	TPlayer() :
-		mMeta		( "", ofColour(0,0,0) ),
+		TPlayerMeta	( "", ofColour(0,0,0) ),
 		mDeathStar	( NULL ),
 		mHealth		( 100 )
 	{
 	}
 		
 	TPlayer(const TPlayerMeta& Meta) :
-		mMeta		( Meta ),
+		TPlayerMeta	( Meta ),
 		mDeathStar	( NULL ),
 		mHealth		( 100 )
 	{
 	}
 
+	TPlayerMeta&		GetMeta()		{	return *this;	}
+
 public:
 	TActorDeathStar*	mDeathStar;
-	TPlayerMeta			mMeta;
 	int					mHealth;
 };
 
@@ -71,6 +69,7 @@ public:
 	bool			mFinished;	//	if true the drag hasn't been relesaed yet
 	ofShapeLine2	mLine;
 	TActorDrag*		mActor;
+	TRef			mPlayer;	//	player which did the drag
 };
 
 
@@ -111,7 +110,8 @@ protected:
 	void		OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet);
 
 	//	utils
-	TPlayer*	GetPlayer(TActorRef ActorRef);	
+	TPlayer*	GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
+	TRef		GetCurrentPlayer() const			{	return mCurrentPlayer;	}
 
 	vec2f		ScreenToWorld(const vec2f& Screen2,float Z);
 	vec2f		WorldToScreen(const vec3f& World3);
@@ -123,6 +123,7 @@ public:
 	ofCamera				mCamera;
 	TWorld					mWorld;
 	Array<TPlayer>			mPlayers;
+	TRef					mCurrentPlayer;		//	who's turn
 	Array<TPlayerDrag>		mPendingDrags;
 };
 
