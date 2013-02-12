@@ -1,13 +1,16 @@
 #pragma once
 
 #include "Main.h"
+#include "TActor.h"
+#include "TPhysics.h"
 
 
 namespace TGamePackets
 {
 	enum Type
 	{
-		FireRocket
+		FireRocket,
+		Collision_RocketPlayer,
 	};
 };
 
@@ -28,13 +31,6 @@ public:
 
 
 
-class TGamePacket_FireRocket : public TGamePacketDerivitive<TGamePackets::FireRocket>
-{
-public:
-	ofShapeLine2	mFiringLine;
-};
-
-
 class TGamePacketContainer : public ofMutex
 {
 public:
@@ -48,6 +44,25 @@ public:
 protected:
 	Array<TGamePacket*>		mPackets;
 };
+
+
+
+class TGamePacket_FireRocket : public TGamePacketDerivitive<TGamePackets::FireRocket>
+{
+public:
+	ofShapeLine2	mFiringLine;
+};
+
+
+class TGamePacket_CollisionRocketPlayer : public TGamePacketDerivitive<TGamePackets::Collision_RocketPlayer>
+{
+public:
+	TActorRef		mActorRocket;
+	TActorRef		mActorDeathStar;
+	TIntersection	mIntersection;
+};
+
+
 
 
 

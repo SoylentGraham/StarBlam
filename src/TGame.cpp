@@ -46,11 +46,15 @@ void TGame::Update(float TimeStep)
 	//	update post-input things
 	UpdateDrags();
 
+	//	update entities
+	mWorld.Update( TimeStep );
+
+	//	do collisoin before packets then it all happens in the same frame :)
+	UpdateCollisions();
+
 	//	process game packets (logic basically)
 	UpdateGamePackets();
 
-	//	update entities
-	mWorld.Update( TimeStep );
 }
 
 void TGame::Render(float TimeStep)
@@ -186,7 +190,7 @@ void TGame::OnDragStarted(TPlayerDrag& Drag)
 void TGame::OnDragEnded(TPlayerDrag& Drag)
 {
 	//	clean up drag graphics 
-	mWorld.DestroyActor( Drag.mActor );
+	mWorld.DestroyActor( *Drag.mActor );
 	Drag.mActor = NULL;
 
 	//	launch rocket if there was enough of a drag.
@@ -328,6 +332,9 @@ bool TGame::OnPacket(TGamePacket& Packet)
 	case TGamePackets::FireRocket:
 		OnPacket_FireRocket( static_cast<TGamePacket_FireRocket&>( Packet ) );
 		return true;
+	case TGamePackets::Collision_RocketPlayer:
+		OnPacket_Collision( static_cast<TGamePacket_CollisionRocketPlayer&>( Packet ) );
+		return true;
 	}
 
 	return false;
@@ -339,3 +346,70 @@ void TGame::OnPacket_FireRocket(TGamePacket_FireRocket& Packet)
 	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine );
 }
 
+
+void TGame::OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet)
+{
+	//	actor A is the rocket
+	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
+	mWorld.DestroyActor( Packet.mActorRocket );
+
+	//	find the player
+	TPlayer* pPlayer = GetPlayer( Packet.mActorDeathStar );
+	if ( pPlayer )
+	{
+		pPlayer->mHealth -= 10;
+	}
+}
+
+TPlayer* TGame::GetPlayer(TActorRef ActorRef)
+{
+	//	grab the actor...
+	TActor& Actor = mWorld.GetActor( ActorRef );
+
+	for ( int p=0;	p<mPlayers.GetSize();	p++ )
+	{
+		auto& Player = mPlayers[p];
+		if ( *Player.mDeathStar == Actor )
+			return &Player;
+	}
+
+	return NULL;
+}
+
+
+
+void TGame::UpdateCollisions()
+{
+	while ( true )
+	{
+		TCollision Collision = mWorld.PopCollision();
+		if ( !Collision.IsValid() )
+			break;
+
+		//	grab the actors for the functions
+		TActor& ActorA = mWorld.GetActor( Collision.mActorA );
+		TActor& ActorB = mWorld.GetActor( Collision.mActorB );
+
+		if ( HandleCollision<TActorRocket,TActorDeathStar>( Collision, ActorA, ActorB ) )
+			continue;
+
+		//	unhandled
+		OnCollision( Collision, ActorA, ActorB );
+	}
+}
+
+
+void TGame::OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorDeathStar& ActorB)
+{
+	//	kablammo!
+	TGamePacket_CollisionRocketPlayer Packet;
+	Packet.mActorRocket = ActorA;
+	Packet.mActorDeathStar = ActorB;
+	Packet.mIntersection = Collision.mIntersection;
+	mGamePackets.PushPacket( Packet );
+}
+
+void TGame::OnCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB)
+{
+	
+}

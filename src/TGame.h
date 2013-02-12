@@ -89,17 +89,29 @@ public:
 	void		Render(float TimeStep);
 
 protected:
+	void		RenderWorld(float TimeStep);
+	void		RenderHud(float TimeStep);
+
+	//	local
 	void		UpdateDrags();
 	void		OnDragStarted(TPlayerDrag& Drag);
 	void		OnDragEnded(TPlayerDrag& Drag);
 	void		UpdateDrag(TPlayerDrag& Drag);
 	
-	void		RenderWorld(float TimeStep);
-	void		RenderHud(float TimeStep);
+	void		UpdateCollisions();
+	void		OnCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB);
+	void		OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorDeathStar& ActorB);
+	template<class ACTORA,class ACTORB>
+	bool		HandleCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB);
 
+	//	real
 	void		UpdateGamePackets();
 	bool		OnPacket(TGamePacket& Packet);
 	void		OnPacket_FireRocket(TGamePacket_FireRocket& Packet);
+	void		OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet);
+
+	//	utils
+	TPlayer*	GetPlayer(TActorRef ActorRef);	
 
 	vec2f		ScreenToWorld(const vec2f& Screen2,float Z);
 	vec2f		WorldToScreen(const vec3f& World3);
@@ -114,4 +126,20 @@ public:
 	Array<TPlayerDrag>		mPendingDrags;
 };
 
+
+template<class ACTORA,class ACTORB>
+bool TGame::HandleCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB)
+{
+	if ( ActorA == ACTORA::TYPE && ActorB == ACTORB::TYPE )
+	{
+		OnCollision( Collision, static_cast<ACTORA&>( ActorA ), static_cast<ACTORB&>( ActorB ) );
+		return true;
+	}
+	if ( ActorA == ACTORB::TYPE && ActorA == ACTORB::TYPE )
+	{
+		OnCollision( Collision, static_cast<ACTORB&>( ActorB ), static_cast<ACTORA&>( ActorA ) );
+		return true;
+	}
+	return false;
+}
 

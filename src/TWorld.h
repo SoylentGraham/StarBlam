@@ -2,23 +2,29 @@
 
 #include "Main.h"
 #include "TActor.h"
+#include "TPhysics.h"
 
 
 class TWorld
 {
 public:
-	void		Render(float TimeStep,const TRenderSettings& RenderSettings);
-	void		Update(float TimeStep);
+	void			Render(float TimeStep,const TRenderSettings& RenderSettings);
+	void			Update(float TimeStep);
+
+	void			DoCollisions(Array<TCollisionActor>& CollisionActors);
+	TCollision		PopCollision();
 
 	template<class ACTORTYPE>
 	ACTORTYPE*		CreateActor();
 	template<class ACTORTYPE,typename P1>
 	ACTORTYPE*		CreateActor(const P1& Param1);
-
-	void			DestroyActor(TActor* pActor);
+	void			DestroyActor(TActor& Actor);
+	void			DestroyActor(const TActorRef ActorRef)	{	DestroyActor( GetActor( ActorRef ) );	}
+	TActor&			GetActor(const TActorRef& Actor)		{	return const_cast<TActor&>( *Actor.mActor );	}
 
 public:
-	Array<TActor*>	mActors;
+	Array<TCollision>	mCollisions;
+	Array<TActor*>		mActors;
 };
 
 

@@ -2,16 +2,20 @@
 
 
 
-#define MIN_ROCKET_SPEED	400.f	//	unit/sec
-#define MAX_ROCKET_SPEED	400.f	//	unit/sec
+#define ROCKET_MIN_SPEED	400.f	//	unit/sec
+#define ROCKET_MAX_SPEED	400.f	//	unit/sec
+#define EXPLOSION_GROW_RATE	200.f	//	unit/sec
+#define EXPLOSION_MAX_SIZE	40.f
+
 
 //ofShapeBox3 gWorldBox( vec3f(-1000,-600,0), vec3f(1000,600,1000) );
 ofShapeBox3 gWorldBox( vec3f(-WORLD_WIDTH/2,-300,4), vec3f(WORLD_WIDTH/2,300,1000) );
 
 
 
-void TActor::Update(float TimeStep,TWorld& World)
+bool TActor::Update(float TimeStep,TWorld& World)
 {
+	return true;
 }
 
 
@@ -63,7 +67,7 @@ TCollisionShape	TActorDeathStar::GetCollisionShape() const
 
 
 TActorStars::TActorStars() :
-	TActor	( STARS_Z )
+	TActorDerivitive	( STARS_Z )
 {
 	//	generate random stars
 	for ( int i=0;	i<200;	i++ )
@@ -103,7 +107,7 @@ void TActorStars::Render(float TimeStep,const TRenderSettings& RenderSettings)
 
 
 TActorDrag::TActorDrag() :
-	TActor	( DRAG_Z )
+	TActorDerivitive	( DRAG_Z )
 {
 }
 
@@ -132,12 +136,12 @@ void TActorDrag::SetLine(const ofShapeLine2& Line)
 
 
 TActorRocket::TActorRocket(const ofShapeLine2& FiringLine) :
-	TActor		( ROCKET_Z ),
-	mVelocity	( FiringLine.mEnd - FiringLine.mStart )
+	TActorDerivitive	( ROCKET_Z ),
+	mVelocity			( FiringLine.mEnd - FiringLine.mStart )
 {
 	//	convert velocity to units/per sec
 	float VelSpeed = mVelocity.length();
-	ofLimit( VelSpeed, MIN_ROCKET_SPEED, MAX_ROCKET_SPEED );
+	ofLimit( VelSpeed, ROCKET_MIN_SPEED, ROCKET_MAX_SPEED );
 	mVelocity.normalize();
 	mVelocity *= VelSpeed;
 
@@ -146,7 +150,7 @@ TActorRocket::TActorRocket(const ofShapeLine2& FiringLine) :
 }
 
 
-void TActorRocket::Update(float TimeStep,TWorld& World)
+bool TActorRocket::Update(float TimeStep,TWorld& World)
 {
 	vec2f Velocity = mVelocity;
 
@@ -155,6 +159,12 @@ void TActorRocket::Update(float TimeStep,TWorld& World)
 	//	move!
 	mPosition.x += Velocity.x * TimeStep;
 	mPosition.y += Velocity.y * TimeStep;
+
+	//	die if out of world
+	if ( gWorldBox.IsOutside( mPosition ) )
+		return false;
+
+	return true;
 }
 
 TCollisionShape TActorRocket::GetCollisionShape() const
@@ -162,5 +172,36 @@ TCollisionShape TActorRocket::GetCollisionShape() const
 	TCollisionShape Shape;
 	Shape.mCircle = ofShapeCircle2( mPosition, 20.f );
 	return Shape;
+}
+
+
+TActorExplosion::TActorExplosion(const vec2f& Position) :
+	TActorDerivitive	( EXPLOSION_Z ),
+	mSize				( 2.f )
+{
+	SetPosition( Position );
+}
+
+void TActorExplosion::Render(float TimeStep,const TRenderSettings& RenderSettings)
+{
+	mSize += EXPLOSION_GROW_RATE * TimeStep;
+
+	TActor::Render( TimeStep, RenderSettings );
+}
+	
+TCollisionShape TActorExplosion::GetCollisionShape() const
+{
+	TCollisionShape Shape;
+	Shape.mCircle = ofShapeCircle2( GetPosition2(), mSize );
+	return Shape;
+}
+
+bool TActorExplosion::Update(float TimeStep,TWorld& World)
+{
+	//	die when too big
+	if ( mSize > EXPLOSION_MAX_SIZE )
+		return false;
+
+	return true;
 }
 
