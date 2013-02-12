@@ -27,22 +27,6 @@ public:
 };
 
 
-class TIntersection
-{
-public:
-	TIntersection() :
-		mIsValid		( false )
-	{
-	}
-
-	bool		IsValid() const			{	return mIsValid;	}
-
-public:
-	bool		mIsValid;
-	vec2f		mMidIntersection;
-	vec2f		mCollisionPointA;
-	vec2f		mCollisionPointB;
-};
 
 class TCollisionTest
 {

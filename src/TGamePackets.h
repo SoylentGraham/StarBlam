@@ -11,6 +11,7 @@ namespace TGamePackets
 	{
 		FireRocket,
 		Collision_RocketPlayer,
+		Collision_RocketSentry,
 	};
 };
 
@@ -50,7 +51,7 @@ protected:
 class TGamePacket_FireRocket : public TGamePacketDerivitive<TGamePackets::FireRocket>
 {
 public:
-	ofShapeLine2	mFiringLine;
+	ofLine2	mFiringLine;
 	TRef			mPlayerRef;
 };
 
@@ -60,6 +61,15 @@ class TGamePacket_CollisionRocketPlayer : public TGamePacketDerivitive<TGamePack
 public:
 	TActorRef		mActorRocket;
 	TActorRef		mActorDeathStar;
+	TIntersection	mIntersection;
+};
+
+
+class TGamePacket_CollisionRocketSentry : public TGamePacketDerivitive<TGamePackets::Collision_RocketSentry>
+{
+public:
+	TActorRef		mActorRocket;
+	TActorRef		mActorSentry;
 	TIntersection	mIntersection;
 };
 

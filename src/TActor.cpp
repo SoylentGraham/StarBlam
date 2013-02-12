@@ -60,7 +60,7 @@ void TActor::Render(float TimeStep,const TRenderSettings& RenderSettings)
 TCollisionShape	TActorDeathStar::GetCollisionShape() const
 {
 	TCollisionShape Shape;
-	Shape.mCircle = ofShapeCircle2( mPosition, 100.f );
+	Shape.mCircle = ofShapeCircle2( mPosition, DEATHSTAR_SIZE );
 	return Shape;
 }
 
@@ -126,7 +126,7 @@ void TActorDrag::Render(float TimeStep,const TRenderSettings& RenderSettings)
 			End.x, End.y, End.z );
 }
 
-void TActorDrag::SetLine(const ofShapeLine2& Line)
+void TActorDrag::SetLine(const ofLine2& Line)
 {
 	//	todo: update collision shape etc
 	mLine = Line;
@@ -135,7 +135,7 @@ void TActorDrag::SetLine(const ofShapeLine2& Line)
 
 
 
-TActorRocket::TActorRocket(const ofShapeLine2& FiringLine,TRef PlayerRef) :
+TActorRocket::TActorRocket(const ofLine2& FiringLine,TRef PlayerRef) :
 	TActorDerivitive	( ROCKET_Z ),
 	mVelocity			( FiringLine.mEnd - FiringLine.mStart ),
 	mPlayerRef			( PlayerRef )
@@ -171,7 +171,7 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 TCollisionShape TActorRocket::GetCollisionShape() const
 {
 	TCollisionShape Shape;
-	Shape.mCircle = ofShapeCircle2( mPosition, 20.f );
+	Shape.mCircle = ofShapeCircle2( mPosition, ROCKET_SIZE );
 	return Shape;
 }
 
@@ -205,4 +205,22 @@ bool TActorExplosion::Update(float TimeStep,TWorld& World)
 
 	return true;
 }
+
+
+TActorSentry::TActorSentry(const ofShapeCircle2& Shape,const ofColour& Colour) :
+	TActorDerivitive	( SENTRY_Z ),
+	mColour				( Colour ),
+	mRadius				( Shape.mRadius )
+{
+	SetPosition( Shape.mPosition );
+}
+
+
+TCollisionShape TActorSentry::GetCollisionShape() const
+{
+	TCollisionShape Shape;
+	Shape.mCircle = ofShapeCircle2( GetPosition2(), mRadius );
+	return Shape;
+}
+
 

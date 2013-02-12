@@ -5,6 +5,12 @@
 #include "TGamePackets.h"
 
 
+#define SENTRY_COUNT	10
+#define SENTRY_RADIUS	10.f
+
+#define FINGER_SCREEN_SIZE	10.f	//	may vary for different devices at different DPI...
+
+
 class TGameCamera
 {
 public:
@@ -23,6 +29,8 @@ class TPlayerMeta
 {
 public:
 	TPlayerMeta(const TString& Name,const ofColour& Colour);
+
+	inline bool	operator==(const TRef& Ref) const	{	return mRef == Ref;	}
 
 public:
 	ofColour	mColour;
@@ -51,8 +59,9 @@ public:
 	TPlayerMeta&		GetMeta()		{	return *this;	}
 
 public:
-	TActorDeathStar*	mDeathStar;
-	int					mHealth;
+	TActorDeathStar*		mDeathStar;
+	Array<TActorSentry*>	mSentrys;
+	int						mHealth;
 };
 
 
@@ -65,10 +74,13 @@ public:
 	{
 	}
 
+	ofLine2			GetLine(TWorld& World) const;
+
 public:
 	bool			mFinished;	//	if true the drag hasn't been relesaed yet
-	ofShapeLine2	mLine;
-	TActorDrag*		mActor;
+	TActorRef		mSentry;	//	drag from this sentry
+	vec2f			mDragTo;	//	where the player is dragging to
+	TActorDrag*		mActor;		//	visualisation of drag
 	TRef			mPlayer;	//	player which did the drag
 };
 
@@ -93,6 +105,7 @@ protected:
 
 	//	local
 	void		UpdateDrags();
+	bool		TryNewDrag(const SoyGesture& Gesture);
 	void		OnDragStarted(TPlayerDrag& Drag);
 	void		OnDragEnded(TPlayerDrag& Drag);
 	void		UpdateDrag(TPlayerDrag& Drag);
@@ -100,6 +113,7 @@ protected:
 	void		UpdateCollisions();
 	void		OnCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB);
 	void		OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorDeathStar& ActorB);
+	void		OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorSentry& ActorB);
 	template<class ACTORA,class ACTORB>
 	bool		HandleCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB);
 
@@ -108,13 +122,16 @@ protected:
 	bool		OnPacket(TGamePacket& Packet);
 	void		OnPacket_FireRocket(TGamePacket_FireRocket& Packet);
 	void		OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet);
+	void		OnPacket_Collision(TGamePacket_CollisionRocketSentry& Packet);
 
 	//	utils
 	TPlayer*	GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
+	TPlayer*	GetPlayer(TRef PlayerRef)			{	return mPlayers.Find( PlayerRef );	}
 	TRef		GetCurrentPlayer() const			{	return mCurrentPlayer;	}
 
-	vec2f		ScreenToWorld(const vec2f& Screen2,float Z);
-	vec2f		WorldToScreen(const vec3f& World3);
+	vec2f			ScreenToWorld(const vec2f& Screen2,float Z);
+	vec2f			WorldToScreen(const vec3f& World3);
+	ofShapeCircle2	WorldToScreen(const ofShapeCircle2& Shape,float Z);
 
 public:
 	TGamePacketContainer	mGamePackets;

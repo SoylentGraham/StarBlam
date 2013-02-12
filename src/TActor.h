@@ -10,11 +10,14 @@ class TActor;
 
 #define STARS_Z		1
 #define DEATHSTAR_Z	2
-#define ROCKET_Z	3
-#define EXPLOSION_Z	4
-#define GUI_Z		5
+#define SENTRY_Z	3
+#define ROCKET_Z	4
+#define EXPLOSION_Z	5
+#define GUI_Z		6
 #define DRAG_Z		GUI_Z
 
+#define	ROCKET_SIZE		20.f
+#define DEATHSTAR_SIZE	110.f
 
 
 namespace TActors
@@ -26,6 +29,7 @@ namespace TActors
 		Rocket,
 		Drag,
 		Explosion,
+		Sentry,		//	base sentry 
 	};
 };
 
@@ -143,10 +147,10 @@ public:
 	virtual void		Render(float TimeStep,const TRenderSettings& RenderSettings);
 
 	virtual ofColour	GetColour() const			{	return ofColour( 230,10,10 );	}
-	void				SetLine(const ofShapeLine2& Line);
+	void				SetLine(const ofLine2& Line);
 
 public:
-	ofShapeLine2		mLine;
+	ofLine2		mLine;
 };
 
 
@@ -154,7 +158,7 @@ public:
 class TActorRocket : public TActorDerivitive<TActors::Rocket>
 {
 public:
-	TActorRocket(const ofShapeLine2& FiringLine,TRef PlayerRef);
+	TActorRocket(const ofLine2& FiringLine,TRef PlayerRef);
 
 	virtual bool			Update(float TimeStep,TWorld& World);
 	
@@ -180,4 +184,21 @@ public:
 public:
 	float					mSize;
 };
+
+
+
+
+class TActorSentry : public TActorDerivitive<TActors::Sentry>
+{
+public:
+	TActorSentry(const ofShapeCircle2& Shape,const ofColour& Colour);
+
+	virtual TCollisionShape	GetCollisionShape() const;
+	virtual ofColour		GetColour() const			{	return mColour;	}
+
+public:
+	ofColour				mColour;
+	float					mRadius;
+};
+
 
