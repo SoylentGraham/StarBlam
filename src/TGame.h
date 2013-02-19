@@ -3,12 +3,15 @@
 #include "Main.h"
 #include "TWorld.h"
 #include "TGamePackets.h"
+#include "TActor.h"
 
-
-#define SENTRY_COUNT	10
-#define SENTRY_RADIUS	10.f
+#define ENABLE_STARS	true
 
 #define FINGER_SCREEN_SIZE	10.f	//	may vary for different devices at different DPI...
+
+
+class TGame;
+
 
 
 class TGameCamera
@@ -60,28 +63,43 @@ public:
 
 public:
 	TActorDeathStar*		mDeathStar;
-	Array<TActorSentry*>	mSentrys;
 	int						mHealth;
 };
 
+namespace TPlayerDragState
+{
+	enum Type
+	{
+		Init,
+		Active,
+		Finished,
+	};
+};
 
 class TPlayerDrag
 {
 public:
 	TPlayerDrag() :
-		mFinished	( false ),
+		mState		( TPlayerDragState::Init ),
 		mActor		( NULL )
 	{
 	}
 
-	ofLine2			GetLine(TWorld& World) const;
+	bool			IsFinished() const				{	return mState == TPlayerDragState::Finished;	}
+	void			SetFinished()					{	mState = TPlayerDragState::Finished;	}
+	ofLine2			GetWorldDragLine(TWorld& World,TGame& Game) const;
+	vec2f			GetWorldDragTo(TGame& Game,float z) const;
+	vec2f			GetScreenDragTo() const					{	return mScreenDragTo;	}
+	void			SetScreenDragTo(const vec2f& ScreenPos)	{	mScreenDragTo = ScreenPos;	}
 
 public:
-	bool			mFinished;	//	if true the drag hasn't been relesaed yet
-	TActorRef		mSentry;	//	drag from this sentry
-	vec2f			mDragTo;	//	where the player is dragging to
-	TActorDrag*		mActor;		//	visualisation of drag
-	TRef			mPlayer;	//	player which did the drag
+	TPlayerDragState::Type	mState;			//	if true the drag hasn't been relesaed yet
+	TActorRef				mSentry;		//	drag from this sentry
+	TActorDrag*				mActor;			//	visualisation of drag
+	TRef					mPlayer;		//	player which did the drag
+
+private:
+	vec3f					mScreenDragTo;	//	where the player is dragging to
 };
 
 
@@ -98,6 +116,10 @@ public:
 	void		UpdateInput(SoyInput& Input);
 
 	void		Render(float TimeStep);
+
+	vec2f			ScreenToWorld(const vec2f& Screen2,float Z);
+	vec2f			WorldToScreen(const vec3f& World3);
+	ofShapeCircle2	WorldToScreen(const ofShapeCircle2& Shape,float Z);
 
 protected:
 	void		RenderWorld(float TimeStep);
@@ -122,16 +144,13 @@ protected:
 	bool		OnPacket(TGamePacket& Packet);
 	void		OnPacket_FireRocket(TGamePacket_FireRocket& Packet);
 	void		OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet);
-	void		OnPacket_Collision(TGamePacket_CollisionRocketSentry& Packet);
+	void		OnPacket_Collision(TGamePacket_CollisionRocketAndSentry& Packet);
 
 	//	utils
 	TPlayer*	GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
 	TPlayer*	GetPlayer(TRef PlayerRef)			{	return mPlayers.Find( PlayerRef );	}
 	TRef		GetCurrentPlayer() const			{	return mCurrentPlayer;	}
 
-	vec2f			ScreenToWorld(const vec2f& Screen2,float Z);
-	vec2f			WorldToScreen(const vec3f& World3);
-	ofShapeCircle2	WorldToScreen(const ofShapeCircle2& Shape,float Z);
 
 public:
 	TGamePacketContainer	mGamePackets;

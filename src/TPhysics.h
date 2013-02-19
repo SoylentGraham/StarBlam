@@ -15,7 +15,7 @@ public:
 	}
 	TCollisionActor(TActor& Actor) :
 		mActor	( &Actor ),
-		mShape	( Actor.GetCollisionShape() )
+		mShape	( Actor.GetWorldCollisionShape() )
 	{
 	}
 

@@ -99,6 +99,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofShape.cpp" />
+    <ClCompile Include="src\TComponent.cpp" />
     <ClCompile Include="src\TPhysics.cpp" />
     <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyApp.cpp" />
     <ClCompile Include="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.cpp" />
@@ -172,6 +173,7 @@
     <ClInclude Include="..\..\..\addons\ofxXmlSettings\libs\tinyxml.h" />
     <ClInclude Include="src\main.h" />
     <ClInclude Include="src\TActor.h" />
+    <ClInclude Include="src\TComponent.h" />
     <ClInclude Include="src\TGame.h" />
     <ClInclude Include="src\TGamePackets.h" />
     <ClInclude Include="src\TRender.h" />

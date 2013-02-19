@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Main.h"
+#include "TComponent.h"
 
 
 namespace TRender
@@ -14,8 +15,6 @@ namespace TRenderMode
 	enum Type
 	{
 		Colour,		//	normal render
-		//Depth,
-		Collision,	//	show collision "layer"
 	};
 };
 
@@ -24,7 +23,15 @@ namespace TRenderMode
 class TRenderSettings
 {
 public:
-	TRenderMode::Type	mMode;
+	TRenderSettings() :
+		mMode		( TRenderMode::Colour ),
+		mComponent	( TComs::Invalid )
+	{
+	}
+
+public:
+	TRenderMode::Type	mMode;		//	
+	TComs::Type			mComponent;	//	render a component rather than the actor
 };
 
 

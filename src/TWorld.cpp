@@ -3,14 +3,17 @@
 
 void TWorld::Render(float TimeStep,const TRenderSettings& RenderSettings)
 {
+	RealDestroy();
+
 	//	render actors
 	for ( int a=0;	a<mActors.GetSize();	a++ )
 	{
 		auto& Actor = *mActors[a];
-
+		/*
 		if ( RenderSettings.mMode == TRenderMode::Collision )
 			Actor.RenderCollision( RenderSettings );
 		else
+		*/
 			Actor.Render( TimeStep, RenderSettings );
 	}
 }
@@ -19,6 +22,8 @@ void TWorld::Render(float TimeStep,const TRenderSettings& RenderSettings)
 
 void TWorld::Update(float TimeStep)
 {
+	RealDestroy();
+
 	Array<TCollisionActor> CollisionActors;
 
 	//	update actors (physics etc)
@@ -37,8 +42,10 @@ void TWorld::Update(float TimeStep)
 	}
 
 	DoCollisions( CollisionActors );
-
 }
+
+
+
 
 
 void TWorld::DoCollisions(Array<TCollisionActor>& CollisionActors)
@@ -69,14 +76,64 @@ void TWorld::DoCollisions(Array<TCollisionActor>& CollisionActors)
 }
 
 
+
+void TWorld::Disconnect(TActor& Actor)
+{
+	//	remove all parent/child links and add to destroy list
+	mDestroyList.PushBackUnique( Actor.GetRef() );	
+
+	//	remove from parent
+	TActor* pParent = GetActor( Actor.GetParent() );
+	if ( pParent )
+	{
+		pParent->OnChildDestroyed( Actor.GetRef() );
+		Actor.SetParent( TActorRef() );
+	}
+
+	//	disconnect children
+	auto Children = Actor.GetChildren();
+	for ( int i=0;	i<Children.GetSize();	i++ )
+	{
+		TActorRef Child = Children[i];
+		TActor* pChild = GetActor( Child );
+		if ( pChild )
+			Disconnect( *pChild );
+	}
+
+}
+
+
 void TWorld::DestroyActor(TActor& Actor)
+{
+	Disconnect( Actor );
+}
+
+
+void TWorld::RealDestroy()
+{
+	while ( !mDestroyList.IsEmpty() )
+	{
+		TActorRef Ref = mDestroyList.PopAt(0);
+
+		//	grab actor (will fail if has been destroyed in the meantime)
+		TActor* pActor = GetActor( Ref );
+		if ( !pActor )
+			continue;
+
+		//	do real destruction
+		RealDestroyActor( *pActor );
+	}
+}
+
+
+void TWorld::RealDestroyActor(TActor& Actor)
 {
 	TActor* pActor = &Actor;
 
-	//	remove from lists
+	//	remove from internal lists
 	mActors.Remove( pActor );
 
-	//	find in collisions (this will be redundant when we omit pointers from the TActorRef)
+	//	find in collision cache (this will be redundant when we omit pointers from the TActorRef)
 	for ( int i=mCollisions.GetSize()-1;	i>=0;	i-- )
 	{
 		auto& Collision = mCollisions[i];
@@ -86,7 +143,7 @@ void TWorld::DestroyActor(TActor& Actor)
 		mCollisions.RemoveBlock( i, 1 );
 	}
 
-	//	delete
+	//	finally, delete
 	delete pActor;
 }
 
@@ -101,5 +158,33 @@ TCollision TWorld::PopCollision()
 	mCollisions.RemoveBlock( 0, 1 );
 
 	return Collision;
+}
+
+
+bool TWorld::DoRaycast(const TRaycast& Raycast,TRaycastResult& Result)
+{
+	//	ray cast against every actor with a collisionshape
+	return false;
+}
+
+
+
+TActor* TWorld::GetActor(const TActorRef& Actor)
+{
+	//	check the actor still exists
+	TActor* pActor = const_cast<TActor*>( Actor.GetActor() );
+	if ( !mActors.Find( pActor ) )
+		return NULL;
+
+	return pActor;
+}
+
+void TWorld::DestroyActor(const TActorRef ActorRef)
+{
+	auto* pActor = GetActor( ActorRef );
+	if ( !pActor )
+		return;
+
+	DestroyActor( *pActor );
 }
 

@@ -43,6 +43,9 @@
     <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyApp.cpp">
       <Filter>addons\ofxSoylent</Filter>
     </ClCompile>
+    <ClCompile Include="src\TComponent.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">
@@ -258,6 +261,9 @@
       <Filter>addons\ofxUI</Filter>
     </ClInclude>
     <ClInclude Include="src\TPhysics.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TComponent.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

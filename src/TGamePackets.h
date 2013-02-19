@@ -11,7 +11,7 @@ namespace TGamePackets
 	{
 		FireRocket,
 		Collision_RocketPlayer,
-		Collision_RocketSentry,
+		Collision_RocketAndSentry,
 	};
 };
 
@@ -65,7 +65,7 @@ public:
 };
 
 
-class TGamePacket_CollisionRocketSentry : public TGamePacketDerivitive<TGamePackets::Collision_RocketSentry>
+class TGamePacket_CollisionRocketAndSentry : public TGamePacketDerivitive<TGamePackets::Collision_RocketAndSentry>
 {
 public:
 	TActorRef		mActorRocket;

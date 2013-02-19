@@ -5,6 +5,29 @@
 #include "TPhysics.h"
 
 
+
+class TRaycast
+{
+public:
+	TRaycast(const vec2f& Pos,const vec2f& Normal) :
+		mPosition	( Pos ),
+		mNormal		( Normal )
+	{
+	}
+
+public:
+	vec2f	mPosition;
+	vec2f	mNormal;
+};
+
+class TRaycastResult
+{
+public:
+	vec2f		mIntersection;
+	TActorRef	mActor;			//	first actor we hit
+};
+
+
 class TWorld
 {
 public:
@@ -14,19 +37,30 @@ public:
 	void			DoCollisions(Array<TCollisionActor>& CollisionActors);
 	TCollision		PopCollision();
 
+	bool			DoRaycast(const TRaycast& Raycast,TRaycastResult& Result);
+
+
 	template<class ACTORTYPE>				
 	ACTORTYPE*		CreateActor();
 	template<class ACTORTYPE,typename P1>	
-	ACTORTYPE*		CreateActor(const P1& Param1);
+	ACTORTYPE*		CreateActor(P1& Param1);
 	template<class ACTORTYPE,typename P1,typename P2>	
-	ACTORTYPE*		CreateActor(const P1& Param1,const P2& Param2);
+	ACTORTYPE*		CreateActor(P1& Param1,P2& Param2);
 	void			DestroyActor(TActor& Actor);
-	void			DestroyActor(const TActorRef ActorRef)	{	DestroyActor( GetActor( ActorRef ) );	}
-	TActor&			GetActor(const TActorRef& Actor)		{	return const_cast<TActor&>( *Actor.mActor );	}
+	void			DestroyActor(const TActorRef ActorRef);
+	TActor*			GetActor(const TActorRef& Actor);
+	template<class ACTORTYPE>				
+	ACTORTYPE*		GetActor(const TActorRef& Actor)		{	return static_cast<ACTORTYPE*>( GetActor(Actor) );	}
+
+private:
+	void				Disconnect(TActor& Actor);			//	remove all parent/child links and add to destroy list
+	void				RealDestroy();
+	void				RealDestroyActor(TActor& Actor);
 
 public:
 	Array<TCollision>	mCollisions;
 	Array<TActor*>		mActors;
+	Array<TActorRef>	mDestroyList;
 };
 
 
@@ -46,7 +80,7 @@ ACTORTYPE* TWorld::CreateActor()
 
 
 template<class ACTORTYPE,typename P1>
-ACTORTYPE* TWorld::CreateActor(const P1& Param1)
+ACTORTYPE* TWorld::CreateActor(P1& Param1)
 {
 	ACTORTYPE* pActor = new ACTORTYPE( Param1 );
 	if ( !pActor )
@@ -59,7 +93,7 @@ ACTORTYPE* TWorld::CreateActor(const P1& Param1)
 
 
 template<class ACTORTYPE,typename P1,typename P2>
-ACTORTYPE* TWorld::CreateActor(const P1& Param1,const P2& Param2)
+ACTORTYPE* TWorld::CreateActor(P1& Param1,P2& Param2)
 {
 	ACTORTYPE* pActor = new ACTORTYPE( Param1, Param2 );
 	if ( !pActor )

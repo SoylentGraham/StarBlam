@@ -1,16 +1,192 @@
 #include "TActor.h"
+#include "TWorld.h"
 
-
-
-#define ROCKET_MIN_SPEED	400.f	//	unit/sec
-#define ROCKET_MAX_SPEED	400.f	//	unit/sec
-#define EXPLOSION_GROW_RATE	200.f	//	unit/sec
-#define EXPLOSION_MAX_SIZE	40.f
 
 
 //ofShapeBox3 gWorldBox( vec3f(-1000,-600,0), vec3f(1000,600,1000) );
 ofShapeBox3 gWorldBox( vec3f(-WORLD_WIDTH/2,-300,4), vec3f(WORLD_WIDTH/2,300,1000) );
 
+
+TActor::~TActor()
+{
+	//	if we still have a parent, this actor hasn't been destroyed from the world...
+	assert( !mParent.IsValid() );
+}
+
+
+bool TActor::HasChild(TActorRef ChildRef)
+{
+	//	look down the heirachy for this actor
+	Array<TActorRef> Children = GetChildren();
+	for ( int i=0;	i<Children.GetSize();	i++ )
+	{
+		auto& Child = Children[i];
+		if ( Child == ChildRef )
+			return true;
+
+		//	look down heirachy
+		auto* ChildActor = Child.GetActor();
+		if ( !ChildActor )
+			continue;
+		if ( ChildActor->HasChild( ChildRef ) )
+			return true;
+	}
+
+	return false;
+}
+
+void TActor::SetParent(TActorRef Parent)
+{
+	//	shouldnt overwrite parent unless it's with no-parent
+	if ( Parent.IsValid() )
+	{
+		assert( !mParent.IsValid() );
+	}
+	mParent = Parent;
+
+	//	ensure the tree is valid...
+	if ( Parent.IsValid() )
+	{
+		auto* pParentActor = Parent.GetActor();
+		auto Children = pParentActor->GetChildren();
+		auto ChildRef = GetRef();
+		assert( Children.Find( ChildRef ) );
+	}
+}
+
+
+TTransform TActor::GetParentWorldTransform() const
+{
+	TTransform Transform;
+
+	//	get parent's transform
+	const TActor* pParent = mParent.GetActor();
+	if ( pParent )
+	{
+		TTransform ParentTransform = pParent->GetWorldTransform();
+		ParentTransform.Transform( Transform );
+	}
+
+	return Transform;
+}
+
+TTransform TActor::GetWorldTransform() const
+{
+	//	get local transform
+	TTransform Transform;
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( pTransform )
+		Transform = pTransform->GetTransform();
+
+	//	get parent's transform
+	TTransform ParentTransform = GetParentWorldTransform();
+	ParentTransform.Transform( Transform );
+
+	return Transform;
+}
+
+
+TCollisionShape TActor::GetWorldCollisionShape()
+{
+	TCollisionShape LocalShape = GetLocalCollisionShape();
+	TTransform Transform = GetParentWorldTransform();
+	LocalShape.Transform( Transform );
+	return LocalShape;
+}
+
+
+TCollisionShape TActor::GetLocalCollisionShape()		
+{
+	//	get the collision shape
+	TComCollision* pCollision = GetComponent<TComCollision>();
+	if ( !pCollision )
+		return TCollisionShape();
+
+	//	check if there's a transform to apply to the shape...
+	TComTransform* pTransform = GetComponent<TComTransform>();
+	
+	if ( pTransform )
+	{
+		//	transform
+		TCollisionShape Shape = pCollision->mShape;
+		Shape.Transform( pTransform->GetTransform() );
+		return Shape;
+	}
+
+	return pCollision->mShape;
+}
+
+float TActor::GetZ() const
+{
+	switch ( GetType() )
+	{
+	case TActors::DeathStar:			return DEATHSTAR_Z;
+		case TActors::Stars:			return STARS_Z;
+		case TActors::Rocket:			return ROCKET_Z;
+		case TActors::Drag:				return GUI_Z;
+		case TActors::Explosion:		return EXPLOSION_Z;
+		case TActors::Sentry_Rocket:	return SENTRY_Z;
+		case TActors::Sentry_LaserBeam:	return SENTRY_Z;
+		case TActors::LaserBeam:		return LASERBEAM_Z;
+	};
+
+	return 0.f;
+}
+
+
+void TActor::SetWorldRotation(float AngleDeg)
+{
+	//	need to compensate for parent's rotation
+	TTransform ParentTransform = GetParentWorldTransform();
+	AngleDeg -= ParentTransform.GetRotationDeg();
+
+	//	grab transform to change
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( !pTransform )
+	{
+		//	trying to transform an actor with no transform component
+		assert( pTransform );
+		return;
+	}
+
+	pTransform->SetRotationDeg( AngleDeg );
+}
+
+void TActor::SetLocalPosition(const vec2f& Pos)	
+{
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( !pTransform )
+	{
+		//	trying to transform an actor with no position
+		assert( pTransform );
+		return;
+	}
+
+	pTransform->mPosition = Pos;
+}
+
+
+vec2f TActor::GetLocalPosition2() const 			
+{
+	//	look for transform component
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( pTransform )
+	{
+		return pTransform->mPosition;
+	}
+
+	//	use alternative components... like collison?
+
+	return vec2f(0,0);
+}
+
+vec2f TActor::GetWorldPosition2() const 			
+{
+	vec2f LocalPosition = GetLocalPosition2();
+	TTransform WorldTransform = GetParentWorldTransform();
+	WorldTransform.Transform( LocalPosition );
+	return LocalPosition;
+}
 
 
 bool TActor::Update(float TimeStep,TWorld& World)
@@ -19,10 +195,11 @@ bool TActor::Update(float TimeStep,TWorld& World)
 }
 
 
-void TActor::RenderCollision(const TRenderSettings& RenderSettings)
+void TActor::Render(float TimeStep,const TRenderSettings& RenderSettings)
 {
+	//	default renders the collision shape
 	//	get the collision shape
-	TCollisionShape Shape = GetCollisionShape();
+	TCollisionShape Shape = GetWorldCollisionShape();
 	if ( !Shape.IsValid() )
 		return;
 
@@ -37,37 +214,122 @@ void TActor::RenderCollision(const TRenderSettings& RenderSettings)
 		auto& CirclePos = Shape.mCircle.mPosition;
 
 		//	render collision shape
-		ofCircle( CirclePos.x, CirclePos.y, mPosition.z, Shape.mCircle.mRadius );
+		ofCircle( CirclePos.x, CirclePos.y, GetZ(), Shape.mCircle.mRadius );
 	}
 
 	//	render center
 	{
 		auto& Center = Shape.GetCenter();
 		ofSetColor( ofColour(255), 1.0f );
-		ofBox( Center.x, Center.y, mPosition.z, 4.f );
+		ofBox( Center.x, Center.y, GetZ(), 4.f );
 	}
 }
 
 
 
-void TActor::Render(float TimeStep,const TRenderSettings& RenderSettings)
+TActorDeathStar::TActorDeathStar(TWorld& World,const TActorMeta& Meta) :
+	mColour		( Meta.mColour ),
+	mInitialPos	( Meta.mPosition ),
+	mOffset		( 0.f )
 {
-	//	default renders the collision shape
-	RenderCollision( RenderSettings );
+	//	make a collisoin component
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.mCircle = ofShapeCircle2( DEATHSTAR_SIZE );
+	ofShapeCircle2 DeathStarShape = GetWorldCollisionShape().mCircle;
+	assert( DeathStarShape.IsValid() );
+
+	auto& Transform = AddComponent<TComTransform>();
+	SetLocalPosition( Meta.mPosition );
+
+	//	create child sentrys
+	for ( int i=0;	i<SENTRY_COUNT;	i++ )
+	{
+		float AngleDeg = 360.f * ( static_cast<float>(i) / static_cast<float>( SENTRY_COUNT ) );
+		
+		//	position on edge of death star
+		vec2f Normal = ofNormalFromAngle( AngleDeg );
+		TActorMeta SentryMeta;
+		SentryMeta.mPosition = Normal * (SENTRY_RADIUS + DeathStarShape.mRadius);
+		SentryMeta.mColour = Meta.mColour;
+		SentryMeta.mOwnerPlayer = Meta.mOwnerPlayer;
+		SentryMeta.SetRotationDeg( AngleDeg );
+
+		TActorSentry* pNewSentry = NULL;
+		if ( i % 3 == 0 )
+		{
+			pNewSentry = World.CreateActor<TActorSentryLaserBeam>( SentryMeta, World );
+		}
+		else if ( i % 3 == 1 )
+		{
+			pNewSentry = World.CreateActor<TActorSentryRotation>( SentryMeta, World );
+		}
+		else
+		{
+			pNewSentry = World.CreateActor<TActorSentryRocket>( SentryMeta, World );
+		}
+
+		//	set heirachy
+		mSentrys.PushBack( pNewSentry );
+		pNewSentry->SetParent( GetRef() );
+	}
+
 }
 
 
-TCollisionShape	TActorDeathStar::GetCollisionShape() const
+void TActorDeathStar::GetSentrys(TWorld& World,Array<TActorSentry*>& Sentrys)
 {
-	TCollisionShape Shape;
-	Shape.mCircle = ofShapeCircle2( mPosition, DEATHSTAR_SIZE );
-	return Shape;
+	for ( int i=0;	i<mSentrys.GetSize();	i++ )
+	{
+		TActorRef SentryRef = mSentrys[i];
+		TActorSentry* pSentry = World.GetActor<TActorSentry>( SentryRef );
+		Sentrys.PushBack( pSentry );
+	}
+}
+	
+Array<TActorRef> TActorDeathStar::GetChildren()
+{
+	Array<TActorRef> Children;
+	for ( int i=0;	i<mSentrys.GetSize();	i++ )
+	{
+		TActorRef SentryRef = mSentrys[i];
+		Children.PushBack( SentryRef );
+	}
+	return Children;
+}
+
+bool TActorDeathStar::Update(float TimeStep,TWorld& World)
+{
+	//	testing heirachy code
+	mOffset += TimeStep;
+	if ( mOffset > 10 )
+		mOffset -= 10*2;
+
+	//	update transform
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( pTransform )
+	{
+		/*
+		pTransform->mPosition = mInitialPos;
+		pTransform->mPosition.y += mOffset * 5;
+
+		//	rotate
+		float NewAngle = pTransform->GetRotationDeg();
+		NewAngle += 60 * TimeStep;
+		pTransform->SetRotationDeg( NewAngle );
+		*/
+	}
+
+	return true;
+}
+
+	
+void TActorDeathStar::OnChildDestroyed(TActorRef ChildRef)
+{
+	mSentrys.Remove( ChildRef );
 }
 
 
-
-TActorStars::TActorStars() :
-	TActorDerivitive	( STARS_Z )
+TActorStars::TActorStars()
 {
 	//	generate random stars
 	for ( int i=0;	i<200;	i++ )
@@ -100,16 +362,10 @@ void TActorStars::Render(float TimeStep,const TRenderSettings& RenderSettings)
 		int Componenet = static_cast<int>( ofLerp( 60, 200, DepthNormal ) );
 		ofSetColor( Componenet, Componenet, Componenet, Alpha );
 
-		ofCircle( Star.x, Star.y, mPosition.z, Radius );
+		ofCircle( Star.x, Star.y, GetZ(), Radius );
 	}
 }
 
-
-
-TActorDrag::TActorDrag() :
-	TActorDerivitive	( DRAG_Z )
-{
-}
 
 
 void TActorDrag::Render(float TimeStep,const TRenderSettings& RenderSettings)
@@ -117,13 +373,11 @@ void TActorDrag::Render(float TimeStep,const TRenderSettings& RenderSettings)
 	TRenderSceneScope Scene(__FUNCTION__);
 
 	ofFill();
-	ofSetLineWidth( 10.f );
+	ofSetLineWidth( DRAG_WIDTH );
 	ofSetColor( GetColour() );
 
-	vec3f Start( mLine.mStart.x, mLine.mStart.y, mPosition.z );
-	vec3f End( mLine.mEnd.x, mLine.mEnd.y, mPosition.z );
-	ofLine( Start.x, Start.y, Start.z, 
-			End.x, End.y, End.z );
+	ofLine( mLine.mStart.x, mLine.mStart.y, GetZ(), 
+			mLine.mEnd.x, mLine.mEnd.y, GetZ() );
 }
 
 void TActorDrag::SetLine(const ofLine2& Line)
@@ -134,11 +388,9 @@ void TActorDrag::SetLine(const ofLine2& Line)
 
 
 
-
-TActorRocket::TActorRocket(const ofLine2& FiringLine,TRef PlayerRef) :
-	TActorDerivitive	( ROCKET_Z ),
+TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta) :
 	mVelocity			( FiringLine.mEnd - FiringLine.mStart ),
-	mPlayerRef			( PlayerRef )
+	mPlayerRef			( ActorMeta.mOwnerPlayer )
 {
 	//	convert velocity to units/per sec
 	float VelSpeed = mVelocity.length();
@@ -146,8 +398,12 @@ TActorRocket::TActorRocket(const ofLine2& FiringLine,TRef PlayerRef) :
 	mVelocity.normalize();
 	mVelocity *= VelSpeed;
 
+	auto& Transform = AddComponent<TComTransform>();
 
-	SetPosition( FiringLine.mStart );
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
+
+	SetLocalPosition( FiringLine.mStart );
 }
 
 
@@ -158,69 +414,195 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 	//	add gravity forces
 
 	//	move!
-	mPosition.x += Velocity.x * TimeStep;
-	mPosition.y += Velocity.y * TimeStep;
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( pTransform )
+	{
+		pTransform->mPosition.x += Velocity.x * TimeStep;
+		pTransform->mPosition.y += Velocity.y * TimeStep;
 
-	//	die if out of world
-	if ( gWorldBox.IsOutside( mPosition ) )
-		return false;
+		//	die if out of world
+		if ( gWorldBox.IsOutside( pTransform->mPosition ) )
+			return false;
+	}
 
 	return true;
 }
 
-TCollisionShape TActorRocket::GetCollisionShape() const
-{
-	TCollisionShape Shape;
-	Shape.mCircle = ofShapeCircle2( mPosition, ROCKET_SIZE );
-	return Shape;
-}
 
 
-TActorExplosion::TActorExplosion(const vec2f& Position) :
-	TActorDerivitive	( EXPLOSION_Z ),
-	mSize				( 2.f )
-{
-	SetPosition( Position );
-}
 
-void TActorExplosion::Render(float TimeStep,const TRenderSettings& RenderSettings)
-{
-	mSize += EXPLOSION_GROW_RATE * TimeStep;
 
-	TActor::Render( TimeStep, RenderSettings );
-}
-	
-TCollisionShape TActorExplosion::GetCollisionShape() const
+TActorExplosion::TActorExplosion(const vec2f& Position)
 {
-	TCollisionShape Shape;
-	Shape.mCircle = ofShapeCircle2( GetPosition2(), mSize );
-	return Shape;
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.mCircle = ofShapeCircle2( EXPLOSION_INITIAL_SIZE );
+
+	auto& Transform = AddComponent<TComTransform>();
+
+	SetLocalPosition( Position );
+
 }
 
 bool TActorExplosion::Update(float TimeStep,TWorld& World)
 {
-	//	die when too big
-	if ( mSize > EXPLOSION_MAX_SIZE )
-		return false;
+	//	update collision size
+	auto* Collision = GetComponent<TComCollision>();
+	if ( Collision )
+	{
+		auto& Size = Collision->mShape.mCircle.mRadius;
+		Size += EXPLOSION_GROW_RATE * TimeStep;
+
+		//	die when too big
+		if ( Size > EXPLOSION_MAX_SIZE )
+			return false;
+	}
 
 	return true;
 }
 
 
-TActorSentry::TActorSentry(const ofShapeCircle2& Shape,const ofColour& Colour) :
-	TActorDerivitive	( SENTRY_Z ),
-	mColour				( Colour ),
-	mRadius				( Shape.mRadius )
+TActorSentry::TActorSentry(const TActorMeta& ActorMeta) :
+	mColour				( ActorMeta.mColour )
 {
-	SetPosition( Shape.mPosition );
+	auto& Transform = AddComponent<TComTransform>();
+	Transform.GetTransform() = ActorMeta.GetTransform();
+
+	//	make a collision component
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.mCircle = ofShapeCircle2( SENTRY_RADIUS );
 }
 
 
-TCollisionShape TActorSentry::GetCollisionShape() const
+
+TActorSentryLaserBeam::TActorSentryLaserBeam(const TActorMeta& ActorMeta,TWorld& World) :
+	TActorSentryBase	( ActorMeta )
 {
-	TCollisionShape Shape;
-	Shape.mCircle = ofShapeCircle2( GetPosition2(), mRadius );
-	return Shape;
+	//	create laser beam
+	TActorMeta LaserBeamMeta;
+	LaserBeamMeta.mPosition = ActorMeta.mPosition;
+	auto* pLaserBeam = World.CreateActor<TActorLaserBeam>( LaserBeamMeta );
+	mLaserBeam = pLaserBeam;
+	pLaserBeam->SetParent( GetRef() );
 }
 
+
+bool TActorSentryLaserBeam::Update(float TimeStep,TWorld& World)
+{
+	TActorLaserBeam* LaserBeam = World.GetActor<TActorLaserBeam>( mLaserBeam );
+
+	if ( LaserBeam )
+		LaserBeam->mActive = IsActive();
+
+	return true;
+}
+
+void TActorSentryLaserBeam::SetState(TActorSentryState::Type State)
+{
+	mState = State;
+}
+
+Array<TActorRef> TActorSentryLaserBeam::GetChildren()
+{
+	Array<TActorRef> Children;
+	Children.PushBack( mLaserBeam );
+	return Children;
+}
+
+
+
+
+TActorLaserBeam::TActorLaserBeam(const TActorMeta& ActorMeta) :
+	mActive				( false ),
+	mLength				( LASERBEAM_MIN_LENGTH )
+{
+}
+
+void TActorLaserBeam::Render(float TimeStep,const TRenderSettings& RenderSettings)
+{
+	TRenderSceneScope Scene(__FUNCTION__);
+	ofFill();
+	ofSetColor( GetColour(), 0.5f );
+	
+	//	generate triangle points
+	float mWidth = LASERBEAM_WIDTH;
+	ofLine2 Line = GetWorldBeamLine();
+	vec2f Normal = Line.GetNormal();
+	vec2f Right = Normal.getPerpendicular();
+
+	float z = GetZ();
+	BufferArray<vec3f,4> TrianglePoints;
+	TrianglePoints.PushBack( vec3f( Line.mStart - (Right*mWidth), z ) );
+	TrianglePoints.PushBack( vec3f( Line.mEnd - (Right*mWidth), z ) );
+	TrianglePoints.PushBack( vec3f( Line.mEnd + (Right*mWidth), z ) );
+	TrianglePoints.PushBack( vec3f( Line.mStart + (Right*mWidth), z ) );
+
+	ofTriangle( TrianglePoints[0], TrianglePoints[1], TrianglePoints[2] );
+	ofTriangle( TrianglePoints[2], TrianglePoints[3], TrianglePoints[0] );
+}
+
+bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
+{
+	//	idle
+	if ( !mActive && mLength <= LASERBEAM_MIN_LENGTH )
+		return true;
+
+	//	retract
+	if ( !mActive )
+	{
+		//	retract
+		mLength -= LASERBEAM_RETRACT_SPEED * TimeStep;
+		if ( mLength < LASERBEAM_MIN_LENGTH )
+			mLength = LASERBEAM_MIN_LENGTH;
+		return true;
+	}
+
+	//	extend beam as neccessary
+	TRaycastResult Raycast;
+	vec2f Position = GetWorldPosition2();
+
+	//	ray extends forever!
+	ofLine2 BeamLine = GetWorldBeamLine();
+	vec2f Normal = BeamLine.GetNormal();
+	if ( !World.DoRaycast( TRaycast( BeamLine.mStart, Normal ), Raycast ) )
+	{
+		Raycast.mIntersection = Position + (Normal * 2000.f);
+	}
+
+	float EndLength = (Raycast.mIntersection - Position).length();
+
+	//	extend
+	if ( EndLength > mLength )
+	{
+		mLength += LASERBEAM_EXTEND_SPEED * TimeStep;
+	}
+
+	//	stop short
+	if ( EndLength <= mLength )
+	{
+		mLength = EndLength;
+	}
+
+	//	heat up & kill the actor
+	return true;
+}
+
+
+ofLine2 TActorLaserBeam::GetWorldBeamLine() const	
+{
+	vec2f Pos = GetWorldPosition2();
+
+	//	get rotation
+	TTransform WorldTransform = GetWorldTransform();
+	vec2f Normal = ofNormalFromAngle( WorldTransform.GetRotationDeg() );
+
+	return ofLine2( Pos, Pos + (Normal*mLength) );	
+}
+
+
+
+void TActorSentryLaserBeam::OnChildDestroyed(TActorRef ChildRef)
+{
+	if ( mLaserBeam == ChildRef )
+		mLaserBeam = TActorRef();
+}
 

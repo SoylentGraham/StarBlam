@@ -12,6 +12,13 @@ namespace TLGame
 }
 
 
+vec2f TPlayerDrag::GetWorldDragTo(TGame& Game,float z) const
+{
+	return Game.ScreenToWorld( mScreenDragTo, z );
+}
+
+
+
 TPlayerMeta::TPlayerMeta(const TString& Name,const ofColour& Colour) :
 	mName	( Name ),
 	mColour	( Colour ),
@@ -31,7 +38,8 @@ TGame::TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2)
 bool TGame::Init()
 {
 	//	create background stars
-	mWorld.CreateActor<TActorStars>();
+	if ( ENABLE_STARS )
+		mWorld.CreateActor<TActorStars>();
 
 	BufferArray<vec2f,2> PlayerPositions;
 	PlayerPositions.PushBack( vec2f(-WORLD_WIDTH/4,0) );
@@ -44,32 +52,11 @@ bool TGame::Init()
 		auto& Player = mPlayers[p];
 
 		//	create main death star!
-		Player.mDeathStar = mWorld.CreateActor<TActorDeathStar>();
-		Player.mDeathStar->mMaterial.mColour = Player.mColour;
-		Player.mDeathStar->SetPosition( PlayerPositions[p] );
-	}
-
-	//	create sentrys/weapons 
-	//	todo: auto-managed by death star!
-	for ( int p=0;	p<mPlayers.GetSize();	p++ )
-	{
-		auto& Player = mPlayers[p];
-		auto& DeathStar = *Player.mDeathStar;
-	
-		for ( int i=0;	i<SENTRY_COUNT;	i++ )
-		{
-			float AngleDeg = 360.f * ( static_cast<float>(i) / static_cast<float>( SENTRY_COUNT ) );
-			float AngleRad = ofDegToRad( AngleDeg );
-		
-			//	position on edge of death star
-			ofShapeCircle2 DeathStarShape = DeathStar.GetCollisionShape().mCircle;
-			ofShapeCircle2 SentryPos( SENTRY_RADIUS );
-			SentryPos.mPosition = vec2f( sinf( AngleRad ), cosf( AngleRad ) );
-			SentryPos.mPosition *= SentryPos.mRadius + DeathStarShape.mRadius;
-			SentryPos.mPosition += DeathStarShape.mPosition;
-
-			Player.mSentrys.PushBack( mWorld.CreateActor<TActorSentry>( SentryPos, Player.mColour ) );
-		}
+		TActorMeta Meta;
+		Meta.mOwnerPlayer = Player.mRef;
+		Meta.mColour = Player.mColour;
+		Meta.mPosition = PlayerPositions[p];
+		Player.mDeathStar = mWorld.CreateActor<TActorDeathStar>( mWorld, Meta );
 	}
 
 	//	init camera
@@ -137,9 +124,7 @@ void TGame::RenderWorld(float TimeStep)
 	ofClear( ofColour(30,30,30) );
 
 	//	render world entities
-	static bool RenderCollision = false;
 	TRenderSettings RenderSettings;
-	RenderSettings.mMode = RenderCollision ? TRenderMode::Collision : TRenderMode::Colour;
 	mWorld.Render( TimeStep, RenderSettings );
 }
 
@@ -159,7 +144,7 @@ void TGame::RenderHud(float TimeStep)
 		std::string StdString( static_cast<const char*>( String ) );
 
 		//	player -> screen
-		vec3f WorldPos = Player.mDeathStar->GetPosition3();
+		vec3f WorldPos = Player.mDeathStar->GetWorldPosition3();
 
 		vec2f ScreenPos = WorldPos;
 
@@ -194,14 +179,14 @@ void TGame::UpdateInput(SoyInput& Input)
 		{
 			pCurrentDrag = &mPendingDrags.GetBack();
 			//	if current drag is finished, ignore it
-			if ( pCurrentDrag->mFinished )
+			if ( pCurrentDrag->IsFinished() )
 				pCurrentDrag = NULL;
 		}
 
 		//	if gesture is a release, end the current drag if there is one...
 		if ( Gesture.IsUp() && pCurrentDrag )
 		{
-			pCurrentDrag->mFinished = true;
+			pCurrentDrag->SetFinished();
 		}
 		else if ( !pCurrentDrag && Gesture.IsDown() )
 		{
@@ -211,7 +196,7 @@ void TGame::UpdateInput(SoyInput& Input)
 		else if ( pCurrentDrag && Gesture.IsDown() )
 		{
 			//	update end point of current drag
-			pCurrentDrag->mDragTo = ScreenToWorld( Gesture.mPath.GetBack(), GUI_Z );
+			pCurrentDrag->SetScreenDragTo( Gesture.mPath.GetBack() );
 		}
 		
 	}
@@ -233,13 +218,17 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 	int NearestSentry = -1;
 	float NearestSentryDistanceSq = 0.f;
 	
-	for ( int i=0;	i<Player.mSentrys.GetSize();	i++ )
+	Array<TActorSentry*> Sentrys;
+	if ( Player.mDeathStar )
+		Player.mDeathStar->GetSentrys( mWorld, Sentrys );
+
+	for ( int i=0;	i<Sentrys.GetSize();	i++ )
 	{
-		auto& Sentry = *Player.mSentrys[i];
+		auto& Sentry = *Sentrys[i];
 
 		//	get screen-collision shape of sentry
-		ofShapeCircle2 SentryWorldShape = Sentry.GetCollisionShape().mCircle;
-		ofShapeCircle2 SentryShape = WorldToScreen( SentryWorldShape, Sentry.GetPosition3().z );
+		ofShapeCircle2 SentryWorldShape = Sentry.GetWorldCollisionShape().mCircle;
+		ofShapeCircle2 SentryShape = WorldToScreen( SentryWorldShape, Sentry.GetWorldPosition3().z );
 
 		//	get distance from finger...
 		TIntersection2 Intersection = FingerShape.GetIntersection( SentryShape );
@@ -258,61 +247,110 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 	if ( NearestSentry == -1 )
 		return false;
 
-	auto& Sentry = *Player.mSentrys[NearestSentry];
+	auto& Sentry = *Sentrys[NearestSentry];
 
 	//	create a drag from that sentry
 	TPlayerDrag* pCurrentDrag = NULL;
 	pCurrentDrag = &mPendingDrags.PushBack();
 	pCurrentDrag->mPlayer = GetCurrentPlayer();
 	pCurrentDrag->mSentry = Sentry.GetRef();
-	pCurrentDrag->mDragTo = ScreenToWorld( Gesture.mPath.GetBack(), GUI_Z );
-
+	pCurrentDrag->SetScreenDragTo( Gesture.mPath.GetBack() );
 	return true;
 }
 
 
 void TGame::OnDragStarted(TPlayerDrag& Drag)
 {
-	//	create actor
-	if ( !Drag.mActor )
+	auto* pSentry = mWorld.GetActor<TActorSentry>( Drag.mSentry );
+	if ( !pSentry )
 	{
-		Drag.mActor = mWorld.CreateActor<TActorDrag>();
+		assert( pSentry );
+		return;
 	}
+	auto& Sentry = *pSentry;
+
+	//	set sentry as active
+	Sentry.SetState( TActorSentryState::Active );
+
+	switch ( Sentry.GetType() )
+	{
+	//	if the sentry is a rocket, we create a UI drag
+	case TActors::Sentry_Rocket:
+		if ( !Drag.mActor )
+			Drag.mActor = mWorld.CreateActor<TActorDrag>();
+		break;
+	}
+
+	Drag.mState = TPlayerDragState::Active;
 }
 
 void TGame::OnDragEnded(TPlayerDrag& Drag)
 {
+	Drag.mState = TPlayerDragState::Finished;	//	probably already set
+
 	//	clean up drag graphics 
-	mWorld.DestroyActor( *Drag.mActor );
-	Drag.mActor = NULL;
+	if ( Drag.mActor  )
+	{
+		mWorld.DestroyActor( *Drag.mActor );
+		Drag.mActor = NULL;
+	}
 
-	//	launch rocket if there was enough of a drag.
-	ofLine2 DragLine = Drag.GetLine( mWorld );
-	if ( DragLine.GetLength() < 3.f )
+	auto* pSentry = mWorld.GetActor<TActorSentry>( Drag.mSentry );
+	if ( !pSentry )
+	{
+		assert( pSentry );
 		return;
+	}
+	auto& Sentry = *pSentry;
+	Sentry.SetState( TActorSentryState::Inactive );
 
-	TGamePacket_FireRocket Packet;
-	Packet.mFiringLine = DragLine;
-	Packet.mPlayerRef = Drag.mPlayer;
-	mGamePackets.PushPacket( Packet );
+	if ( Sentry.GetType() == TActors::Sentry_Rocket )
+	{
+		//	launch rocket if there was enough of a drag.
+		//	gr: should be a 2D test?
+		ofLine2 DragLine = Drag.GetWorldDragLine( mWorld, *this );
+		if ( DragLine.GetLength() < 3.f )
+			return;
+
+		TGamePacket_FireRocket Packet;
+		Packet.mFiringLine = DragLine;
+		Packet.mPlayerRef = Drag.mPlayer;
+		mGamePackets.PushPacket( Packet );
+	}
 }
 
 void TGame::UpdateDrag(TPlayerDrag& Drag)
 {
-	//	new drag!
-	if ( !Drag.mActor )
+	if ( Drag.mActor )
 	{
-		OnDragStarted( Drag );
+		//	update actor graphics/sound etc
+		ofLine2 WorldLine = Drag.GetWorldDragLine( mWorld, *this );
+		Drag.mActor->SetLine( WorldLine );
 	}
 
-	if ( !Drag.mActor )
+	auto* pSentry = mWorld.GetActor<TActorSentry>( Drag.mSentry );
+	if ( !pSentry )
 	{
-		assert( Drag.mActor );
+		assert( pSentry );
 		return;
 	}
-	
-	//	update actor graphics/sound etc
-	Drag.mActor->SetLine( Drag.GetLine( mWorld ) );
+	auto& Sentry = *pSentry;
+	if ( Sentry.GetType() == TActors::Sentry_Rotation )
+	{
+		//	rotate the death star
+		TPlayer* pPlayer = GetPlayer( Sentry.GetRef() );
+		if ( pPlayer && pPlayer->mDeathStar )
+		{
+			//	work out rotation from where the finger is to the center of the deathstar
+			vec2f DeathStarCenterSceen = WorldToScreen( pPlayer->mDeathStar->GetWorldPosition3() );
+			vec2f SentryCenterSceen = WorldToScreen( Sentry.GetWorldPosition3() );
+			vec2f NormalToDrag = Drag.GetScreenDragTo() - DeathStarCenterSceen;
+			float AngleToDrag = ofAngleFromNormal(NormalToDrag);
+			float AngleToSentry = ofAngleFromNormal( Sentry.GetLocalPosition2() );
+			float Rotation = AngleToDrag - AngleToSentry;
+			pPlayer->mDeathStar->SetWorldRotation( Rotation );
+		}
+	}
 }
 
 void TGame::UpdateDrags()
@@ -323,12 +361,15 @@ void TGame::UpdateDrags()
 		auto& Drag = mPendingDrags[i];
 
 		//	handle finsihed ones
-		if ( Drag.mFinished )
+		if ( Drag.mState == TPlayerDragState::Finished )
 		{
 			OnDragEnded( Drag );
 			mPendingDrags.RemoveBlock( i,1 );
 			continue;
 		}
+
+		if ( Drag.mState == TPlayerDragState::Init )
+			OnDragStarted( Drag );
 
 		UpdateDrag( Drag );
 	}
@@ -440,11 +481,13 @@ bool TGame::OnPacket(TGamePacket& Packet)
 	case TGamePackets::FireRocket:
 		OnPacket_FireRocket( static_cast<TGamePacket_FireRocket&>( Packet ) );
 		return true;
+
 	case TGamePackets::Collision_RocketPlayer:
 		OnPacket_Collision( static_cast<TGamePacket_CollisionRocketPlayer&>( Packet ) );
 		return true;
-	case TGamePackets::Collision_RocketSentry:
-		OnPacket_Collision( static_cast<TGamePacket_CollisionRocketSentry&>( Packet ) );
+
+	case TGamePackets::Collision_RocketAndSentry:
+		OnPacket_Collision( static_cast<TGamePacket_CollisionRocketAndSentry&>( Packet ) );
 		return true;
 	}
 
@@ -454,11 +497,13 @@ bool TGame::OnPacket(TGamePacket& Packet)
 void TGame::OnPacket_FireRocket(TGamePacket_FireRocket& Packet)
 {
 	//	create rocket actor
-	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Packet.mPlayerRef );
+	TActorMeta Meta;
+	Meta.mOwnerPlayer = Packet.mPlayerRef;
+	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Meta );
 }
 
 
-void TGame::OnPacket_Collision(TGamePacket_CollisionRocketSentry& Packet)
+void TGame::OnPacket_Collision(TGamePacket_CollisionRocketAndSentry& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
@@ -485,19 +530,18 @@ void TGame::OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet)
 TPlayer* TGame::GetPlayer(TActorRef ActorRef)
 {
 	//	grab the actor...
-	TActor& Actor = mWorld.GetActor( ActorRef );
+	TActor* pActor = mWorld.GetActor( ActorRef );
 
 	for ( int p=0;	p<mPlayers.GetSize();	p++ )
 	{
 		auto& Player = mPlayers[p];
 
 		//	match an actor a player
-		if ( *Player.mDeathStar == Actor )
+		if ( Player.mDeathStar == pActor )
 			return &Player;
 
-		for ( int s=0;	s<Player.mSentrys.GetSize();	s++ )
-			if ( *Player.mSentrys[s] == Actor )
-				return &Player;
+		if ( Player.mDeathStar->HasChild( ActorRef ) )
+			return &Player;
 	}
 
 	return NULL;
@@ -514,11 +558,17 @@ void TGame::UpdateCollisions()
 			break;
 
 		//	grab the actors for the functions
-		TActor& ActorA = mWorld.GetActor( Collision.mActorA );
-		TActor& ActorB = mWorld.GetActor( Collision.mActorB );
+		TActor* pActorA = mWorld.GetActor( Collision.mActorA );
+		TActor* pActorB = mWorld.GetActor( Collision.mActorB );
+		if ( !pActorA || !pActorB )
+			continue;
+		auto& ActorA = *pActorA;
+		auto& ActorB = *pActorB;
 
 		if ( HandleCollision<TActorRocket,TActorDeathStar>( Collision, ActorA, ActorB ) )	continue;
-		if ( HandleCollision<TActorRocket,TActorSentry>( Collision, ActorA, ActorB ) )	continue;
+		if ( HandleCollision<TActorRocket,TActorSentryRocket>( Collision, ActorA, ActorB ) )	continue;
+		if ( HandleCollision<TActorRocket,TActorSentryLaserBeam>( Collision, ActorA, ActorB ) )	continue;
+		if ( HandleCollision<TActorRocket,TActorSentryRotation>( Collision, ActorA, ActorB ) )	continue;
 
 		//	unhandled
 		OnCollision( Collision, ActorA, ActorB );
@@ -552,7 +602,7 @@ void TGame::OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorS
 		return;
 
 	//	kablammo!
-	TGamePacket_CollisionRocketSentry Packet;
+	TGamePacket_CollisionRocketAndSentry Packet;
 	Packet.mActorRocket = ActorA;
 	Packet.mActorSentry = ActorB;
 	Packet.mIntersection = Collision.mIntersection;
@@ -564,11 +614,16 @@ void TGame::OnCollision(const TCollision& Collision,TActor& ActorA,TActor& Actor
 	
 }
 
-ofLine2 TPlayerDrag::GetLine(TWorld& World) const
+ofLine2 TPlayerDrag::GetWorldDragLine(TWorld& World,TGame& Game) const
 {
 	//	get actor
-	auto& Sentry = World.GetActor( mSentry );
-	ofShapeCircle2 SentryShape = Sentry.GetCollisionShape().mCircle;
-	return ofLine2( SentryShape.mPosition, mDragTo );
+	auto* pSentry = World.GetActor( mSentry );
+	if ( !pSentry )
+		return ofLine2();
+
+	float z = pSentry->GetZ();
+	vec2f WorldDragTo = this->GetWorldDragTo( Game, z );
+	ofShapeCircle2 SentryShape = pSentry->GetWorldCollisionShape().mCircle;
+	return ofLine2( SentryShape.mPosition, WorldDragTo );
 }
 
