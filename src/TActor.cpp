@@ -227,7 +227,7 @@ void TActor::Render(float TimeStep,const TRenderSettings& RenderSettings)
 
 
 
-TActorDeathStar::TActorDeathStar(TWorld& World,const TActorMeta& Meta) :
+TActorDeathStar::TActorDeathStar(const TActorMeta& Meta,TWorld& World) :
 	mColour		( Meta.mColour ),
 	mInitialPos	( Meta.mPosition ),
 	mOffset		( 0.f )
@@ -257,15 +257,15 @@ TActorDeathStar::TActorDeathStar(TWorld& World,const TActorMeta& Meta) :
 		TActorSentry* pNewSentry = NULL;
 		if ( i % 3 == 0 )
 		{
-			pNewSentry = World.CreateActor<TActorSentryLaserBeam>( SentryMeta, World );
+			pNewSentry = World.CreateActor<TActorSentryLaserBeam>( SentryMeta );
 		}
 		else if ( i % 3 == 1 )
 		{
-			pNewSentry = World.CreateActor<TActorSentryRotation>( SentryMeta, World );
+			pNewSentry = World.CreateActor<TActorSentryRotation>( SentryMeta );
 		}
 		else
 		{
-			pNewSentry = World.CreateActor<TActorSentryRocket>( SentryMeta, World );
+			pNewSentry = World.CreateActor<TActorSentryRocket>( SentryMeta );
 		}
 
 		//	set heirachy
@@ -329,7 +329,7 @@ void TActorDeathStar::OnChildDestroyed(TActorRef ChildRef)
 }
 
 
-TActorStars::TActorStars()
+TActorStars::TActorStars(TWorld& World)
 {
 	//	generate random stars
 	for ( int i=0;	i<200;	i++ )
@@ -388,7 +388,7 @@ void TActorDrag::SetLine(const ofLine2& Line)
 
 
 
-TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta) :
+TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World) :
 	mVelocity			( FiringLine.mEnd - FiringLine.mStart ),
 	mPlayerRef			( ActorMeta.mOwnerPlayer )
 {
@@ -432,15 +432,13 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 
 
 
-TActorExplosion::TActorExplosion(const vec2f& Position)
+TActorExplosion::TActorExplosion(const vec2f& Position,TWorld& World)
 {
 	auto& Collision = AddComponent<TComCollision>();
 	Collision.mShape.mCircle = ofShapeCircle2( EXPLOSION_INITIAL_SIZE );
 
 	auto& Transform = AddComponent<TComTransform>();
-
 	SetLocalPosition( Position );
-
 }
 
 bool TActorExplosion::Update(float TimeStep,TWorld& World)
@@ -511,7 +509,7 @@ Array<TActorRef> TActorSentryLaserBeam::GetChildren()
 
 
 
-TActorLaserBeam::TActorLaserBeam(const TActorMeta& ActorMeta) :
+TActorLaserBeam::TActorLaserBeam(const TActorMeta& ActorMeta,TWorld& World) :
 	mActive				( false ),
 	mLength				( LASERBEAM_MIN_LENGTH )
 {
@@ -605,4 +603,63 @@ void TActorSentryLaserBeam::OnChildDestroyed(TActorRef ChildRef)
 	if ( mLaserBeam == ChildRef )
 		mLaserBeam = TActorRef();
 }
+
+
+
+
+
+TActorAsteroid::TActorAsteroid(const TActorMeta& ActorMeta,float Radius,TWorld& World)
+{
+	auto& Transform = AddComponent<TComTransform>();
+	Transform.GetTransform() = ActorMeta.GetTransform();
+
+	//	generate local-space chunks
+	Array<ofShapePolygon2> ChunkShapes;
+	
+	auto& First = ChunkShapes.PushBack();
+	First.mTriangle.PushBack( vec2f( 0, -Radius ) );
+	First.mTriangle.PushBack( vec2f( -Radius, Radius ) );
+	First.mTriangle.PushBack( vec2f( Radius, Radius ) );
+
+	for ( int i=0;	i<ChunkShapes.GetSize();	i++ )
+	{
+		auto& Shape = ChunkShapes[i];
+		auto* pChunk = World.CreateActor<TActorAsteroidChunk>( Shape );
+		if ( !pChunk )
+			continue;
+		mChunks.PushBack( pChunk->GetRef() );
+		pChunk->SetParent( GetRef() );
+	}
+}
+
+
+bool TActorAsteroid::Update(float TimeStep,TWorld& World)
+{
+	//	no more parts, destroy
+	if ( mChunks.IsEmpty() )
+		return false;
+	return true;
+}
+
+
+TActorAsteroidChunk::TActorAsteroidChunk(const ofShapePolygon2& Polygon,TWorld& World) :
+	mHealth	( 1.f )
+{
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.SetPolygon( Polygon );
+}
+
+
+void TActorAsteroidChunk::OnImpact(const TAsteroidChunkImpactMeta& Impact)
+{
+	mHealth -= Impact.mChunkHealthReduction;
+}
+	
+bool TActorAsteroidChunk::Update(float TimeStep,TWorld& World)
+{
+	if ( mHealth <= 0.f )
+		return false;
+	return true;
+}
+
 

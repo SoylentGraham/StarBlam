@@ -27,13 +27,15 @@ TPlayerMeta::TPlayerMeta(const TString& Name,const ofColour& Colour) :
 }
 
 
-TGame::TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2)
+TGame::TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2) :
+	mGameState	( TGameState::PlayerOneTurn )
 {
 	mPlayers.PushBack( Player1 );
 	mPlayers.PushBack( Player2 );
-
-	mCurrentPlayer = mPlayers[0].mRef;
 }
+
+
+
 
 bool TGame::Init()
 {
@@ -44,7 +46,13 @@ bool TGame::Init()
 	BufferArray<vec2f,2> PlayerPositions;
 	PlayerPositions.PushBack( vec2f(-WORLD_WIDTH/4,0) );
 	PlayerPositions.PushBack( vec2f(WORLD_WIDTH/4,0) );
-
+	BufferArray<vec3f,5> AsteroidPositionRad;	//	z is radius
+	for ( int i=0;	i<AsteroidPositionRad.MaxSize();	i++ )
+	{
+		vec2f Pos( ofRandom( -80, 80 ), ofRandom( -600, 600 ) );
+		float Rad( ofRandom( 10, 40 ) );
+		AsteroidPositionRad.PushBack( vec3f( Pos.x, Pos.y, Rad ) );
+	}
 
 	//	init world with some player entities
 	for ( int p=0;	p<mPlayers.GetSize();	p++ )
@@ -56,7 +64,18 @@ bool TGame::Init()
 		Meta.mOwnerPlayer = Player.mRef;
 		Meta.mColour = Player.mColour;
 		Meta.mPosition = PlayerPositions[p];
-		Player.mDeathStar = mWorld.CreateActor<TActorDeathStar>( mWorld, Meta );
+		Player.mDeathStar = mWorld.CreateActor<TActorDeathStar>( Meta );
+	}
+
+	//	create some asteroids
+	for ( int i=0;	i<AsteroidPositionRad.GetSize();	i++ )
+	{
+		auto& xyrad = AsteroidPositionRad[i];
+		TActorMeta Meta;
+		Meta.mColour = ofColour( 190, 150, 80 );
+		Meta.mPosition = xyrad.xy();
+		float Radius = xyrad.z;
+		auto Asteroid = mWorld.CreateActor<TActorAsteroid>( Meta, Radius );
 	}
 
 	//	init camera
@@ -80,9 +99,9 @@ void TGame::Update(float TimeStep)
 	mWorld.Update( TimeStep );
 
 	//	do collisoin before packets then it all happens in the same frame :)
-	UpdateCollisions();
+	mWorld.UpdateCollisions( *this );
 
-	//	process game packets (logic basically)
+	//	process game packets (real logic from simulation etc)
 	UpdateGamePackets();
 
 }
@@ -207,7 +226,8 @@ void TGame::UpdateInput(SoyInput& Input)
 bool TGame::TryNewDrag(const SoyGesture& Gesture)
 {
 	//	find a player's sentry we're closest to
-	TPlayer* pPlayer = GetPlayer( GetCurrentPlayer() );
+	TRef CurrentPlayer = GetCurrentControlPlayer();
+	TPlayer* pPlayer = GetPlayer( CurrentPlayer );
 	if ( !pPlayer )
 		return false;
 	auto& Player = *pPlayer;
@@ -252,7 +272,7 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 	//	create a drag from that sentry
 	TPlayerDrag* pCurrentDrag = NULL;
 	pCurrentDrag = &mPendingDrags.PushBack();
-	pCurrentDrag->mPlayer = GetCurrentPlayer();
+	pCurrentDrag->mPlayer = CurrentPlayer;
 	pCurrentDrag->mSentry = Sentry.GetRef();
 	pCurrentDrag->SetScreenDragTo( Gesture.mPath.GetBack() );
 	return true;
@@ -476,25 +496,22 @@ void TGame::UpdateGamePackets()
 
 bool TGame::OnPacket(TGamePacket& Packet)
 {
+	#define case_OnPacket(PACKETTYPE)	case PACKETTYPE::TYPE:	OnPacket( static_cast<PACKETTYPE&>( Packet ) );	return true;
+
 	switch ( Packet.GetType() )
 	{
-	case TGamePackets::FireRocket:
-		OnPacket_FireRocket( static_cast<TGamePacket_FireRocket&>( Packet ) );
-		return true;
-
-	case TGamePackets::Collision_RocketPlayer:
-		OnPacket_Collision( static_cast<TGamePacket_CollisionRocketPlayer&>( Packet ) );
-		return true;
-
-	case TGamePackets::Collision_RocketAndSentry:
-		OnPacket_Collision( static_cast<TGamePacket_CollisionRocketAndSentry&>( Packet ) );
-		return true;
+		case_OnPacket( TGamePacket_FireRocket );
+		case_OnPacket( TGamePacket_CollisionRocketPlayer );
+		case_OnPacket( TGamePacket_CollisionRocketAndSentry );
+		case_OnPacket( TGamePacket_CollisionRocketAndAsteroidChunk );
 	}
+
+	#undef case_OnPacket
 
 	return false;
 }
 
-void TGame::OnPacket_FireRocket(TGamePacket_FireRocket& Packet)
+void TGame::OnPacket(TGamePacket_FireRocket& Packet)
 {
 	//	create rocket actor
 	TActorMeta Meta;
@@ -503,7 +520,7 @@ void TGame::OnPacket_FireRocket(TGamePacket_FireRocket& Packet)
 }
 
 
-void TGame::OnPacket_Collision(TGamePacket_CollisionRocketAndSentry& Packet)
+void TGame::OnPacket(TGamePacket_CollisionRocketAndSentry& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
@@ -513,7 +530,7 @@ void TGame::OnPacket_Collision(TGamePacket_CollisionRocketAndSentry& Packet)
 	mWorld.DestroyActor( Packet.mActorSentry );
 }
 
-void TGame::OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet)
+void TGame::OnPacket(TGamePacket_CollisionRocketPlayer& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
@@ -524,6 +541,23 @@ void TGame::OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet)
 	if ( pPlayer )
 	{
 		pPlayer->mHealth -= 10;
+	}
+}
+
+void TGame::OnPacket(TGamePacket_CollisionRocketAndAsteroidChunk& Packet)
+{
+	//	create explossion
+	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
+
+	//	destroy rocket
+	mWorld.DestroyActor( Packet.mActorRocket );
+
+	//	impact asteroid
+	//	gr: the impact effect should be dictated in the packet!
+	auto* pChunk = mWorld.GetActor<TActorAsteroidChunk>( Packet.mActorAsteroidChunk );
+	if ( pChunk )
+	{
+		pChunk->OnImpact( Packet.mChunkImpactMeta );
 	}
 }
 
@@ -549,70 +583,6 @@ TPlayer* TGame::GetPlayer(TActorRef ActorRef)
 
 
 
-void TGame::UpdateCollisions()
-{
-	while ( true )
-	{
-		TCollision Collision = mWorld.PopCollision();
-		if ( !Collision.IsValid() )
-			break;
-
-		//	grab the actors for the functions
-		TActor* pActorA = mWorld.GetActor( Collision.mActorA );
-		TActor* pActorB = mWorld.GetActor( Collision.mActorB );
-		if ( !pActorA || !pActorB )
-			continue;
-		auto& ActorA = *pActorA;
-		auto& ActorB = *pActorB;
-
-		if ( HandleCollision<TActorRocket,TActorDeathStar>( Collision, ActorA, ActorB ) )	continue;
-		if ( HandleCollision<TActorRocket,TActorSentryRocket>( Collision, ActorA, ActorB ) )	continue;
-		if ( HandleCollision<TActorRocket,TActorSentryLaserBeam>( Collision, ActorA, ActorB ) )	continue;
-		if ( HandleCollision<TActorRocket,TActorSentryRotation>( Collision, ActorA, ActorB ) )	continue;
-
-		//	unhandled
-		OnCollision( Collision, ActorA, ActorB );
-	}
-}
-
-
-void TGame::OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorDeathStar& ActorB)
-{
-	//	if the rocket hits it's owner player, ignore the collision
-	TPlayer* pPlayer = GetPlayer( ActorB.GetRef() );
-	assert( pPlayer );
-	if ( pPlayer && pPlayer->mRef == ActorA.mPlayerRef )
-		return;
-
-	//	kablammo!
-	TGamePacket_CollisionRocketPlayer Packet;
-	Packet.mActorRocket = ActorA;
-	Packet.mActorDeathStar = ActorB;
-	Packet.mIntersection = Collision.mIntersection;
-	mGamePackets.PushPacket( Packet );
-}
-
-
-void TGame::OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorSentry& ActorB)
-{
-	//	if the rocket hits it's owner player, ignore the collision
-	TPlayer* pPlayer = GetPlayer( ActorB.GetRef() );
-	assert( pPlayer );
-	if ( pPlayer && pPlayer->mRef == ActorA.mPlayerRef )
-		return;
-
-	//	kablammo!
-	TGamePacket_CollisionRocketAndSentry Packet;
-	Packet.mActorRocket = ActorA;
-	Packet.mActorSentry = ActorB;
-	Packet.mIntersection = Collision.mIntersection;
-	mGamePackets.PushPacket( Packet );
-}
-
-void TGame::OnCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB)
-{
-	
-}
 
 ofLine2 TPlayerDrag::GetWorldDragLine(TWorld& World,TGame& Game) const
 {
@@ -626,4 +596,43 @@ ofLine2 TPlayerDrag::GetWorldDragLine(TWorld& World,TGame& Game) const
 	ofShapeCircle2 SentryShape = pSentry->GetWorldCollisionShape().mCircle;
 	return ofLine2( SentryShape.mPosition, WorldDragTo );
 }
+
+
+//	current player (though may not have any control)
+TRef TGame::GetCurrentPlayer() const
+{
+	switch ( mGameState )
+	{
+	case TGameState::PlayerOneTurn:
+	case TGameState::PlayerOneTurnEnd:
+		return mPlayers[0].mRef;
+
+	case TGameState::PlayerTwoTurn:
+	case TGameState::PlayerTwoTurnEnd:
+		return mPlayers[1].mRef;
+	}
+
+	assert(false);
+	return TRef();
+}
+
+//	current player with control (invalid if cannot control)
+TRef TGame::GetCurrentControlPlayer() const
+{
+	switch ( mGameState )
+	{
+	case TGameState::PlayerOneTurn:
+		return mPlayers[0].mRef;
+
+	case TGameState::PlayerTwoTurn:
+		return mPlayers[1].mRef;
+
+	default:
+		assert(false);
+	case TGameState::PlayerOneTurnEnd:
+	case TGameState::PlayerTwoTurnEnd:
+		return TRef();
+	}
+}
+
 

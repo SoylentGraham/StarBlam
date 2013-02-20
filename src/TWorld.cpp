@@ -1,4 +1,5 @@
 #include "TWorld.h"
+#include "TGame.h"
 
 
 void TWorld::Render(float TimeStep,const TRenderSettings& RenderSettings)
@@ -187,4 +188,28 @@ void TWorld::DestroyActor(const TActorRef ActorRef)
 
 	DestroyActor( *pActor );
 }
+
+
+
+void TWorld::UpdateCollisions(TGame& Game)
+{
+	while ( true )
+	{
+		TCollision Collision = PopCollision();
+		if ( !Collision.IsValid() )
+			break;
+
+		//	grab the actors for the functions
+		TActor* pActorA = GetActor( Collision.mActorA );
+		TActor* pActorB = GetActor( Collision.mActorB );
+		if ( !pActorA || !pActorB )
+			continue;
+		auto& ActorA = *pActorA;
+		auto& ActorB = *pActorB;
+
+		//	high level collision handling
+		HandleCollision( Collision, Game, ActorA, ActorB );
+	}
+}
+
 

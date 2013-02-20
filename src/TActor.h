@@ -50,7 +50,8 @@ namespace TActors
 		Sentry_LaserBeam,
 		Sentry_Rotation,
 		LaserBeam,
-
+		Asteroid,
+		AsteroidChunk,
 	};
 };
 
@@ -67,8 +68,6 @@ public:
 	ofColour			mColour;
 	TRef				mOwnerPlayer;
 };
-
-
 
 
 class TActor
@@ -136,7 +135,7 @@ public:
 class TActorDeathStar : public TActorDerivitive<TActors::DeathStar>
 {
 public:
-	TActorDeathStar(TWorld& World,const TActorMeta& Meta);
+	TActorDeathStar(const TActorMeta& Meta,TWorld& World);
 
 	virtual bool				Update(float TimeStep,TWorld& World);		//	return false to die
 	virtual ofColour			GetColour() const			{	return mColour;	}
@@ -156,7 +155,7 @@ public:
 class TActorStars : public TActorDerivitive<TActors::Stars>
 {
 public:
-	TActorStars();
+	TActorStars(TWorld& World);
 
 	virtual void		Render(float TimeStep,const TRenderSettings& RenderSettings);
 
@@ -170,6 +169,8 @@ public:
 class TActorDrag : public TActorDerivitive<TActors::Drag>
 {
 public:
+	TActorDrag(TWorld& World)	{}
+
 	virtual void		Render(float TimeStep,const TRenderSettings& RenderSettings);
 
 	virtual ofColour	GetColour() const			{	return ofColour( 230,10,10 );	}
@@ -184,7 +185,7 @@ public:
 class TActorRocket : public TActorDerivitive<TActors::Rocket>
 {
 public:
-	TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta);
+	TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World);
 
 	virtual bool			Update(float TimeStep,TWorld& World);
 	
@@ -198,7 +199,7 @@ public:
 class TActorExplosion : public TActorDerivitive<TActors::Explosion>
 {
 public:
-	TActorExplosion(const vec2f& Position);
+	TActorExplosion(const vec2f& Position,TWorld& World);
 
 	virtual bool			Update(float TimeStep,TWorld& World);
 };
@@ -286,7 +287,7 @@ public:
 class TActorLaserBeam : public TActorDerivitive<TActors::LaserBeam>
 {
 public:
-	TActorLaserBeam(const TActorMeta& ActorMeta);
+	TActorLaserBeam(const TActorMeta& ActorMeta,TWorld& World);
 
 	virtual ofColour		GetColour() const			{	return ofColour( 255,90,220 );	}
 	virtual void			Render(float TimeStep,const TRenderSettings& RenderSettings);
@@ -297,5 +298,51 @@ public:
 public:
 	bool					mActive;
 	float					mLength;
+};
+
+
+//------------------------------------
+//	an asteroid is made of chunks that break off as they're destroyed. 
+//	if one is totally broken up (but not destroyed) they become individual asteroids
+//	a chunk alone has no gravity
+class TActorAsteroid : public TActorDerivitive<TActors::Asteroid>
+{
+public:
+	TActorAsteroid(const TActorMeta& ActorMeta,float Radius,TWorld& World);
+
+	virtual bool				Update(float TimeStep,TWorld& World);
+	virtual Array<TActorRef>	GetChildren()							{	return mChunks;	}
+	virtual void				OnChildDestroyed(TActorRef ChildRef)	{	mChunks.Remove( ChildRef );	}
+
+public:
+	Array<TActorRef>			mChunks;
+};
+
+
+class TAsteroidChunkImpactMeta
+{
+public:
+	TAsteroidChunkImpactMeta() :
+		mChunkHealthReduction	( 1.f ),
+		mSplitAsteroid			( false ),
+		mChunkForce				( 0,0 )
+	{
+	}
+public:
+	float			mChunkHealthReduction;	//	reduce chunk by this much
+	bool			mSplitAsteroid;			//	should we break up the parent asteroid?
+	vec2f			mChunkForce;			//	impact the asteroid by this amount of force
+};
+
+class TActorAsteroidChunk : public TActorDerivitive<TActors::AsteroidChunk>
+{
+public:
+	TActorAsteroidChunk(const ofShapePolygon2& Polygon,TWorld& World);
+
+	virtual bool	Update(float TimeStep,TWorld& World);
+	void			OnImpact(const TAsteroidChunkImpactMeta& Impact);
+
+public:
+	float			mHealth;	//	0..1
 };
 

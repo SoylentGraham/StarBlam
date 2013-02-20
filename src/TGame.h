@@ -2,6 +2,7 @@
 
 #include "Main.h"
 #include "TWorld.h"
+#include "TStarWorld.h"
 #include "TGamePackets.h"
 #include "TActor.h"
 
@@ -12,6 +13,17 @@
 
 class TGame;
 
+
+namespace TGameState
+{
+	enum Type		
+	{
+		PlayerOneTurn,
+		PlayerOneTurnEnd,	//	waiting for everything to finish
+		PlayerTwoTurn,
+		PlayerTwoTurnEnd,
+	};
+};
 
 
 class TGameCamera
@@ -103,53 +115,55 @@ private:
 };
 
 
-
+//----------------------------------------------
 //	disposable game container with logic
+//	controls the real-reaction with game happenings
+//----------------------------------------------
 class TGame
 {
 public:
 	TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2);
 
-	bool		Init();
+	bool			Init();
 
-	void		Update(float TimeStep);
-	void		UpdateInput(SoyInput& Input);
+	void			Update(float TimeStep);
+	void			UpdateInput(SoyInput& Input);
 
-	void		Render(float TimeStep);
-
+	void			Render(float TimeStep);
 	vec2f			ScreenToWorld(const vec2f& Screen2,float Z);
 	vec2f			WorldToScreen(const vec3f& World3);
 	ofShapeCircle2	WorldToScreen(const ofShapeCircle2& Shape,float Z);
 
+	//	world sim->game
+	template<class TPACKET>
+	void			PushPacket(const TPACKET& Packet)	{	mGamePackets.PushPacket( Packet );	}
+	
+	//	utils
+	TPlayer*		GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
+	TPlayer*		GetPlayer(TRef PlayerRef)			{	return mPlayers.Find( PlayerRef );	}
+	TRef			GetCurrentPlayer() const;			//	current player (though may not have any control)
+	TRef			GetCurrentControlPlayer() const;	//	current player with control (invalid if cannot control)
+
 protected:
-	void		RenderWorld(float TimeStep);
-	void		RenderHud(float TimeStep);
+	void			RenderWorld(float TimeStep);
+	void			RenderHud(float TimeStep);
 
 	//	local
-	void		UpdateDrags();
-	bool		TryNewDrag(const SoyGesture& Gesture);
-	void		OnDragStarted(TPlayerDrag& Drag);
-	void		OnDragEnded(TPlayerDrag& Drag);
-	void		UpdateDrag(TPlayerDrag& Drag);
+	void			UpdateDrags();
+	bool			TryNewDrag(const SoyGesture& Gesture);
+	void			OnDragStarted(TPlayerDrag& Drag);
+	void			OnDragEnded(TPlayerDrag& Drag);
+	void			UpdateDrag(TPlayerDrag& Drag);
 	
-	void		UpdateCollisions();
-	void		OnCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB);
-	void		OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorDeathStar& ActorB);
-	void		OnCollision(const TCollision& Collision,TActorRocket& ActorA,TActorSentry& ActorB);
-	template<class ACTORA,class ACTORB>
-	bool		HandleCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB);
 
 	//	real
-	void		UpdateGamePackets();
-	bool		OnPacket(TGamePacket& Packet);
-	void		OnPacket_FireRocket(TGamePacket_FireRocket& Packet);
-	void		OnPacket_Collision(TGamePacket_CollisionRocketPlayer& Packet);
-	void		OnPacket_Collision(TGamePacket_CollisionRocketAndSentry& Packet);
+	void			UpdateGamePackets();
+	bool			OnPacket(TGamePacket& Packet);
+	void			OnPacket(TGamePacket_FireRocket& Packet);
+	void			OnPacket(TGamePacket_CollisionRocketPlayer& Packet);
+	void			OnPacket(TGamePacket_CollisionRocketAndSentry& Packet);
+	void			OnPacket(TGamePacket_CollisionRocketAndAsteroidChunk& Packet);
 
-	//	utils
-	TPlayer*	GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
-	TPlayer*	GetPlayer(TRef PlayerRef)			{	return mPlayers.Find( PlayerRef );	}
-	TRef		GetCurrentPlayer() const			{	return mCurrentPlayer;	}
 
 
 public:
@@ -157,26 +171,9 @@ public:
 	ofRectangle				mOrthoViewport;
 	TGameCamera				mGameCamera;
 	ofCamera				mCamera;
-	TWorld					mWorld;
+	TStarWorld				mWorld;
 	Array<TPlayer>			mPlayers;
-	TRef					mCurrentPlayer;		//	who's turn
+	TGameState::Type		mGameState;
 	Array<TPlayerDrag>		mPendingDrags;
 };
-
-
-template<class ACTORA,class ACTORB>
-bool TGame::HandleCollision(const TCollision& Collision,TActor& ActorA,TActor& ActorB)
-{
-	if ( ActorA == ACTORA::TYPE && ActorB == ACTORB::TYPE )
-	{
-		OnCollision( Collision, static_cast<ACTORA&>( ActorA ), static_cast<ACTORB&>( ActorB ) );
-		return true;
-	}
-	if ( ActorA == ACTORB::TYPE && ActorA == ACTORB::TYPE )
-	{
-		OnCollision( Collision, static_cast<ACTORB&>( ActorB ), static_cast<ACTORA&>( ActorA ) );
-		return true;
-	}
-	return false;
-}
 

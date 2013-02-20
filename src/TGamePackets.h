@@ -12,6 +12,7 @@ namespace TGamePackets
 		FireRocket,
 		Collision_RocketPlayer,
 		Collision_RocketAndSentry,
+		Collision_RocketAndAsteroidChunk,
 	};
 };
 
@@ -26,6 +27,9 @@ public:
 template<TGamePackets::Type PACKETTYPE>
 class TGamePacketDerivitive : public TGamePacket
 {
+public:
+	static const TGamePackets::Type TYPE = PACKETTYPE;
+
 public:
 	virtual TGamePackets::Type	GetType() const	{	return PACKETTYPE;	}
 };
@@ -71,6 +75,16 @@ public:
 	TActorRef		mActorRocket;
 	TActorRef		mActorSentry;
 	TIntersection	mIntersection;
+};
+
+
+class TGamePacket_CollisionRocketAndAsteroidChunk : public TGamePacketDerivitive<TGamePackets::Collision_RocketAndAsteroidChunk>
+{
+public:
+	TActorRef		mActorRocket;
+	TActorRef		mActorAsteroidChunk;
+	TIntersection	mIntersection;
+	TAsteroidChunkImpactMeta	mChunkImpactMeta;
 };
 
 
