@@ -5,7 +5,7 @@
 
 
 
-void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocket& ActorA,TActorDeathStar& ActorB)
+void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorProjectile& ActorA,TActorDeathStar& ActorB)
 {
 	//	if the rocket hits it's owner player, ignore the collision
 	TPlayer* pPlayer = Game.GetPlayer( ActorB.GetRef() );
@@ -14,15 +14,15 @@ void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocke
 		return;
 
 	//	kablammo!
-	TGamePacket_CollisionRocketPlayer Packet;
-	Packet.mActorRocket = ActorA;
+	TGamePacket_CollisionProjectileAndPlayer Packet;
+	Packet.mActorProjectile = ActorA;
 	Packet.mActorDeathStar = ActorB;
 	Packet.mIntersection = Collision.mIntersection;
 	Game.PushPacket( Packet );
 }
 
 
-void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocket& ActorA,TActorSentry& ActorB)
+void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorProjectile& ActorA,TActorSentry& ActorB)
 {
 	//	if the rocket hits it's owner player, ignore the collision
 	TPlayer* pPlayer = Game.GetPlayer( ActorB.GetRef() );
@@ -31,19 +31,19 @@ void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocke
 		return;
 
 	//	kablammo!
-	TGamePacket_CollisionRocketAndSentry Packet;
-	Packet.mActorRocket = ActorA;
+	TGamePacket_CollisionProjectileAndSentry Packet;
+	Packet.mActorProjectile = ActorA;
 	Packet.mActorSentry = ActorB;
 	Packet.mIntersection = Collision.mIntersection;
 	Game.PushPacket( Packet );
 }
 
 
-void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocket& ActorA,TActorAsteroidChunk& ActorB)
+void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorProjectile& ActorA,TActorAsteroidChunk& ActorB)
 {
 	//	blow up both!
-	TGamePacket_CollisionRocketAndAsteroidChunk Packet;
-	Packet.mActorRocket = ActorA;
+	TGamePacket_CollisionProjectileAndAsteroidChunk Packet;
+	Packet.mActorProjectile = ActorA;
 	Packet.mActorAsteroidChunk = ActorB;
 	Packet.mIntersection = Collision.mIntersection;
 	Game.PushPacket( Packet );
@@ -51,11 +51,18 @@ void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocke
 
 bool TStarWorld::HandleCollision(const TCollision& Collision,TGame& Game,TActor& ActorA,TActor& ActorB)
 {
-	if ( TryCollision<TActorRocket,TActorDeathStar>( Collision, Game, ActorA, ActorB ) )			return true;
+	if ( TryCollision<TActorRocket,TActorDeathStar>( Collision, Game, ActorA, ActorB ) )		return true;
 	if ( TryCollision<TActorRocket,TActorSentryRocket>( Collision, Game, ActorA, ActorB ) )		return true;
+	if ( TryCollision<TActorRocket,TActorSentryMissile>( Collision, Game, ActorA, ActorB ) )	return true;
 	if ( TryCollision<TActorRocket,TActorSentryLaserBeam>( Collision, Game, ActorA, ActorB ) )	return true;
 	if ( TryCollision<TActorRocket,TActorSentryRotation>( Collision, Game, ActorA, ActorB ) )	return true;
-	if ( TryCollision<TActorRocket,TActorAsteroidChunk>( Collision, Game, ActorA, ActorB ) )		return true;
+	if ( TryCollision<TActorRocket,TActorAsteroidChunk>( Collision, Game, ActorA, ActorB ) )	return true;
+	if ( TryCollision<TActorMissile,TActorDeathStar>( Collision, Game, ActorA, ActorB ) )		return true;
+	if ( TryCollision<TActorMissile,TActorSentryRocket>( Collision, Game, ActorA, ActorB ) )	return true;
+	if ( TryCollision<TActorMissile,TActorSentryMissile>( Collision, Game, ActorA, ActorB ) )	return true;
+	if ( TryCollision<TActorMissile,TActorSentryLaserBeam>( Collision, Game, ActorA, ActorB ) )	return true;
+	if ( TryCollision<TActorMissile,TActorSentryRotation>( Collision, Game, ActorA, ActorB ) )	return true;
+	if ( TryCollision<TActorMissile,TActorAsteroidChunk>( Collision, Game, ActorA, ActorB ) )	return true;
 
 	//	unhandled
 	return false;

@@ -10,9 +10,10 @@ namespace TGamePackets
 	enum Type
 	{
 		FireRocket,
-		Collision_RocketPlayer,
-		Collision_RocketAndSentry,
-		Collision_RocketAndAsteroidChunk,
+		FireMissile,
+		Collision_ProjectileAndPlayer,
+		Collision_ProjectileAndSentry,
+		Collision_ProjectileAndAsteroidChunk,
 	};
 };
 
@@ -56,32 +57,40 @@ class TGamePacket_FireRocket : public TGamePacketDerivitive<TGamePackets::FireRo
 {
 public:
 	ofLine2	mFiringLine;
+	TRef	mPlayerRef;
+};
+
+
+class TGamePacket_FireMissile : public TGamePacketDerivitive<TGamePackets::FireMissile>
+{
+public:
+	ofShapePath2	mFiringPath;
 	TRef			mPlayerRef;
 };
 
 
-class TGamePacket_CollisionRocketPlayer : public TGamePacketDerivitive<TGamePackets::Collision_RocketPlayer>
+class TGamePacket_CollisionProjectileAndPlayer : public TGamePacketDerivitive<TGamePackets::Collision_ProjectileAndPlayer>
 {
 public:
-	TActorRef		mActorRocket;
+	TActorRef		mActorProjectile;
 	TActorRef		mActorDeathStar;
 	TIntersection	mIntersection;
 };
 
 
-class TGamePacket_CollisionRocketAndSentry : public TGamePacketDerivitive<TGamePackets::Collision_RocketAndSentry>
+class TGamePacket_CollisionProjectileAndSentry : public TGamePacketDerivitive<TGamePackets::Collision_ProjectileAndSentry>
 {
 public:
-	TActorRef		mActorRocket;
+	TActorRef		mActorProjectile;
 	TActorRef		mActorSentry;
 	TIntersection	mIntersection;
 };
 
 
-class TGamePacket_CollisionRocketAndAsteroidChunk : public TGamePacketDerivitive<TGamePackets::Collision_RocketAndAsteroidChunk>
+class TGamePacket_CollisionProjectileAndAsteroidChunk : public TGamePacketDerivitive<TGamePackets::Collision_ProjectileAndAsteroidChunk>
 {
 public:
-	TActorRef		mActorRocket;
+	TActorRef		mActorProjectile;
 	TActorRef		mActorAsteroidChunk;
 	TIntersection	mIntersection;
 	TAsteroidChunkImpactMeta	mChunkImpactMeta;

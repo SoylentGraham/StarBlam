@@ -295,9 +295,15 @@ void TGame::OnDragStarted(TPlayerDrag& Drag)
 	switch ( Sentry.GetType() )
 	{
 	//	if the sentry is a rocket, we create a UI drag
-	case TActors::Sentry_Rocket:
-		if ( !Drag.mActor )
-			Drag.mActor = mWorld.CreateActor<TActorDrag>();
+	case TActors::SentryRocket:
+		if ( !Drag.mActorDrag )
+			Drag.mActorDrag = mWorld.CreateActor<TActorDrag>();
+		break;
+	
+	//	create UI for drag
+	case TActors::SentryMissile:
+		if ( !Drag.mActorDragPath )
+			Drag.mActorDragPath = mWorld.CreateActor<TActorDragPath>();
 		break;
 	}
 
@@ -308,12 +314,6 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 {
 	Drag.mState = TPlayerDragState::Finished;	//	probably already set
 
-	//	clean up drag graphics 
-	if ( Drag.mActor  )
-	{
-		mWorld.DestroyActor( *Drag.mActor );
-		Drag.mActor = NULL;
-	}
 
 	auto* pSentry = mWorld.GetActor<TActorSentry>( Drag.mSentry );
 	if ( !pSentry )
@@ -324,7 +324,7 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 	auto& Sentry = *pSentry;
 	Sentry.SetState( TActorSentryState::Inactive );
 
-	if ( Sentry.GetType() == TActors::Sentry_Rocket )
+	if ( Sentry.GetType() == TActors::SentryRocket )
 	{
 		//	launch rocket if there was enough of a drag.
 		//	gr: should be a 2D test?
@@ -337,17 +337,42 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 		Packet.mPlayerRef = Drag.mPlayer;
 		mGamePackets.PushPacket( Packet );
 	}
+
+	if ( Sentry.GetType() == TActors::SentryMissile )
+	{
+		//	launch rocket if there was enough of a path
+		//	gr: shouldn't really mix this... the path should be in the drag, and not rely on the actor...
+		ofShapePath2 Path;
+		auto* pDragPath = mWorld.GetActor<TActorDragPath>( Drag.mActorDragPath );
+		if ( pDragPath )
+			Path = pDragPath->mWorldPath;
+
+		//	note: length is in world space! probbaly want to change to screen spatce
+		if ( Path.GetLength() < 3.f )
+			return;
+
+		TGamePacket_FireMissile Packet;
+		Packet.mFiringPath = Path;
+		Packet.mPlayerRef = Drag.mPlayer;
+		mGamePackets.PushPacket( Packet );
+	}
+	
+	
+	//	clean up drag graphics 
+	if ( Drag.mActorDrag  )
+	{
+		mWorld.DestroyActor( *Drag.mActorDrag );
+		Drag.mActorDrag = NULL;
+	}
+	if ( Drag.mActorDragPath  )
+	{
+		mWorld.DestroyActor( *Drag.mActorDragPath );
+		Drag.mActorDragPath = NULL;
+	}
 }
 
 void TGame::UpdateDrag(TPlayerDrag& Drag)
 {
-	if ( Drag.mActor )
-	{
-		//	update actor graphics/sound etc
-		ofLine2 WorldLine = Drag.GetWorldDragLine( mWorld, *this );
-		Drag.mActor->SetLine( WorldLine );
-	}
-
 	auto* pSentry = mWorld.GetActor<TActorSentry>( Drag.mSentry );
 	if ( !pSentry )
 	{
@@ -355,7 +380,21 @@ void TGame::UpdateDrag(TPlayerDrag& Drag)
 		return;
 	}
 	auto& Sentry = *pSentry;
-	if ( Sentry.GetType() == TActors::Sentry_Rotation )
+
+	if ( Drag.mActorDrag )
+	{
+		//	update actor graphics/sound etc
+		ofLine2 WorldLine = Drag.GetWorldDragLine( mWorld, *this );
+		Drag.mActorDrag->SetLine( WorldLine );
+	}
+
+	if ( Drag.mActorDragPath )
+	{
+		vec2f WorldPos = Drag.GetWorldDragTo( *this, Sentry.GetZ() );
+		Drag.mActorDragPath->UpdateTail( WorldPos );
+	}
+
+	if ( Sentry.GetType() == TActors::SentryRotation )
 	{
 		//	rotate the death star
 		TPlayer* pPlayer = GetPlayer( Sentry.GetRef() );
@@ -371,6 +410,8 @@ void TGame::UpdateDrag(TPlayerDrag& Drag)
 			pPlayer->mDeathStar->SetWorldRotation( Rotation );
 		}
 	}
+
+	
 }
 
 void TGame::UpdateDrags()
@@ -501,9 +542,10 @@ bool TGame::OnPacket(TGamePacket& Packet)
 	switch ( Packet.GetType() )
 	{
 		case_OnPacket( TGamePacket_FireRocket );
-		case_OnPacket( TGamePacket_CollisionRocketPlayer );
-		case_OnPacket( TGamePacket_CollisionRocketAndSentry );
-		case_OnPacket( TGamePacket_CollisionRocketAndAsteroidChunk );
+		case_OnPacket( TGamePacket_FireMissile );
+		case_OnPacket( TGamePacket_CollisionProjectileAndPlayer );
+		case_OnPacket( TGamePacket_CollisionProjectileAndSentry );
+		case_OnPacket( TGamePacket_CollisionProjectileAndAsteroidChunk );
 	}
 
 	#undef case_OnPacket
@@ -519,22 +561,30 @@ void TGame::OnPacket(TGamePacket_FireRocket& Packet)
 	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Meta );
 }
 
+void TGame::OnPacket(TGamePacket_FireMissile& Packet)
+{
+	//	create rocket actor
+	TActorMeta Meta;
+	Meta.mOwnerPlayer = Packet.mPlayerRef;
+	mWorld.CreateActor<TActorMissile>( Packet.mFiringPath, Meta );
+}
 
-void TGame::OnPacket(TGamePacket_CollisionRocketAndSentry& Packet)
+
+void TGame::OnPacket(TGamePacket_CollisionProjectileAndSentry& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
-	mWorld.DestroyActor( Packet.mActorRocket );
+	mWorld.DestroyActor( Packet.mActorProjectile );
 
 	//	destroy the sentry we just hit
 	mWorld.DestroyActor( Packet.mActorSentry );
 }
 
-void TGame::OnPacket(TGamePacket_CollisionRocketPlayer& Packet)
+void TGame::OnPacket(TGamePacket_CollisionProjectileAndPlayer& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
-	mWorld.DestroyActor( Packet.mActorRocket );
+	mWorld.DestroyActor( Packet.mActorProjectile );
 
 	//	find the player
 	TPlayer* pPlayer = GetPlayer( Packet.mActorDeathStar );
@@ -544,13 +594,13 @@ void TGame::OnPacket(TGamePacket_CollisionRocketPlayer& Packet)
 	}
 }
 
-void TGame::OnPacket(TGamePacket_CollisionRocketAndAsteroidChunk& Packet)
+void TGame::OnPacket(TGamePacket_CollisionProjectileAndAsteroidChunk& Packet)
 {
 	//	create explossion
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
 
 	//	destroy rocket
-	mWorld.DestroyActor( Packet.mActorRocket );
+	mWorld.DestroyActor( Packet.mActorProjectile );
 
 	//	impact asteroid
 	//	gr: the impact effect should be dictated in the packet!

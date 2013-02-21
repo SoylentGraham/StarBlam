@@ -23,6 +23,7 @@ class TActorSentry;
 #define	ROCKET_SIZE		10.f
 #define ROCKET_MIN_SPEED		350.f	//	unit/sec
 #define ROCKET_MAX_SPEED		350.f	//	unit/sec
+#define MISSILE_SPEED			ROCKET_MAX_SPEED	//	unit/sec
 #define DEATHSTAR_SIZE	110.f
 #define SENTRY_RADIUS	10.f
 #define SENTRY_COUNT	10
@@ -35,7 +36,7 @@ class TActorSentry;
 #define LASERBEAM_MIN_LENGTH	30.f
 #define LASERBEAM_MAX_LENGTH	20000.f
 #define DRAG_WIDTH				10.f
-#define GRAVITY_FORCE_FACTOR	20.f
+#define GRAVITY_FORCE_FACTOR	40.f
 #define PATH_WIDTH				1.f
 #define PATH_MIN_SEGMENT_LENGTH		4.f
 
@@ -49,13 +50,17 @@ namespace TActors
 		Rocket,
 		Drag,
 		Explosion,
-		Sentry_Rocket,
-		Sentry_LaserBeam,
-		Sentry_Rotation,
+		SentryRocket,
+		SentryLaserBeam,
+		SentryRotation,
 		LaserBeam,
 		Asteroid,
 		AsteroidChunk,
+		BasePath,
 		AutoPath,			//	automatically generate path from parent's movement
+		DragPath,			//	user-defined path (for missile)
+		SentryMissile,
+		Missile,
 	};
 };
 
@@ -197,22 +202,62 @@ public:
 };
 
 
+class TActorProjectile : public TActor
+{
+public:
+	TActorProjectile(const TActorMeta& ActorMeta,TWorld& World);
 
-class TActorRocket : public TActorDerivitive<TActors::Rocket>
+	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World);
+	virtual Array<TActorRef>	GetChildren() const;
+	virtual void				OnPreDestroy(TWorld& World);
+	vec2f						GetGravityForce(TWorld& World);
+
+public:
+	TActorRef			mAutoPath;
+};
+
+template<TActors::Type ACTORTYPE>
+class TActorProjectileBase : public TActorProjectile
+{
+public:
+	static const TActors::Type TYPE = ACTORTYPE;
+
+public:
+	TActorProjectileBase(const TActorMeta& ActorMeta,TWorld& World) :
+		TActorProjectile	( ActorMeta, World )
+	{
+	}
+
+	virtual TActors::Type	GetType() const	{	return ACTORTYPE;	}
+};
+
+
+class TActorRocket : public TActorProjectileBase<TActors::Rocket>
 {
 public:
 	TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World);
 
-	virtual bool				Update(float TimeStep,TWorld& World);
-	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World);
-	virtual Array<TActorRef>	GetChildren() const;
-	virtual void				OnPreDestroy(TWorld& World);
+	virtual bool		Update(float TimeStep,TWorld& World);
 
 public:
 	vec2f				mVelocity;
-	TActorRef			mAutoPath;
 };
 
+
+class TActorMissile : public TActorProjectileBase<TActors::Missile>
+{
+public:
+	TActorMissile(const ofShapePath2& FiringPath,const TActorMeta& ActorMeta,TWorld& World);
+
+	virtual bool	Update(float TimeStep,TWorld& World);
+	void			AddVelocity(const vec2f& AdditionalVelocity);
+
+public:
+	ofShapePath2	mPath;
+	float			mPathDistance;	//	how far along the path we are in units
+	vec2f			mVelocity;		//	we follow the path, but we might deviate because of gravity
+	vec2f			mLastDelta;		//	once we get to the end of the path, we just follow the vector at the end. which is this
+};
 
 
 class TActorExplosion : public TActorDerivitive<TActors::Explosion>
@@ -266,7 +311,7 @@ public:
 	virtual TActors::Type	GetType() const	{	return ACTORTYPE;	}
 };
 
-class TActorSentryRocket : public TActorSentryBase<TActors::Sentry_Rocket>
+class TActorSentryRocket : public TActorSentryBase<TActors::SentryRocket>
 {
 public:
 	TActorSentryRocket(const TActorMeta& ActorMeta,TWorld& World) :
@@ -277,8 +322,19 @@ public:
 	virtual void			SetState(TActorSentryState::Type State)		{	mState = State;	}
 };
 
+class TActorSentryMissile : public TActorSentryBase<TActors::SentryMissile>
+{
+public:
+	TActorSentryMissile(const TActorMeta& ActorMeta,TWorld& World) :
+		TActorSentryBase	( ActorMeta )
+	{
+	}
 
-class TActorSentryRotation : public TActorSentryBase<TActors::Sentry_Rotation>
+	virtual void			SetState(TActorSentryState::Type State)		{	mState = State;	}
+};
+
+
+class TActorSentryRotation : public TActorSentryBase<TActors::SentryRotation>
 {
 public:
 	TActorSentryRotation(const TActorMeta& ActorMeta,TWorld& World) :
@@ -289,7 +345,7 @@ public:
 	virtual void			SetState(TActorSentryState::Type State)		{	mState = State;	}
 };
 
-class TActorSentryLaserBeam : public TActorSentryBase<TActors::Sentry_LaserBeam>
+class TActorSentryLaserBeam : public TActorSentryBase<TActors::SentryLaserBeam>
 {
 public:
 	TActorSentryLaserBeam(const TActorMeta& ActorMeta,TWorld& World);
@@ -368,15 +424,56 @@ public:
 };
 
 
-class TActorAutoPath : public TActorDerivitive<TActors::AutoPath>
+template<TActors::Type ACTORTYPE>
+class TActorPathBase : public TActorDerivitive<ACTORTYPE>
+{
+public:
+	TActorPathBase() :
+		mWorldPath	( PATH_MIN_SEGMENT_LENGTH )
+	{
+	}
+
+	void				UpdateTail(const vec2f& WorldPos)	{	mWorldPath.PushTail( WorldPos );	}
+	virtual ofColour	GetColour() const					{	return ofColour(200,200,200);	}
+	virtual void		Render(float TimeStep,const TRenderSettings& RenderSettings);
+
+public:
+	ofShapePath2		mWorldPath;	//	path stored in world space
+};
+
+class TActorAutoPath : public TActorPathBase<TActors::AutoPath>
 {
 public:
 	TActorAutoPath(TWorld& World)	{}
 
-	virtual ofColour	GetColour() const					{	return ofColour(200,200,200);	}
 	virtual bool		Update(float TimeStep,TWorld& World);
-	virtual void		Render(float TimeStep,const TRenderSettings& RenderSettings);
-
-public:
-	Array<vec2f>		mWorldPath;	//	path stored in world space
 };
+
+
+class TActorDragPath : public TActorPathBase<TActors::DragPath>
+{
+public:
+	TActorDragPath(TWorld& World)	{}
+};
+
+
+
+
+
+template<TActors::Type ACTORTYPE>
+void TActorPathBase<ACTORTYPE>::Render(float TimeStep,const TRenderSettings& RenderSettings)
+{
+	TRenderSceneScope Scene(__FUNCTION__);
+	ofSetColor( GetColour() );
+	ofSetLineWidth( PATH_WIDTH );
+	ofFill();
+
+	//	rendering in world space
+	auto& Points = mWorldPath.mPath;
+	for ( int i=0;	i<Points.GetSize()-1;	i++ )
+	{
+		vec3f Start( Points[i].x, Points[i].y, GetZ() );
+		vec3f End( Points[i+1].x, Points[i+1].y, GetZ() );
+		ofLine( Start, End );
+	}
+}

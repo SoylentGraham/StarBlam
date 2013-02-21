@@ -91,8 +91,9 @@ class TPlayerDrag
 {
 public:
 	TPlayerDrag() :
-		mState		( TPlayerDragState::Init ),
-		mActor		( NULL )
+		mState			( TPlayerDragState::Init ),
+		mActorDrag		( NULL ),
+		mActorDragPath	( NULL )
 	{
 	}
 
@@ -106,8 +107,10 @@ public:
 public:
 	TPlayerDragState::Type	mState;			//	if true the drag hasn't been relesaed yet
 	TActorRef				mSentry;		//	drag from this sentry
-	TActorDrag*				mActor;			//	visualisation of drag
 	TRef					mPlayer;		//	player which did the drag
+	//	todo: merge!
+	TActorDrag*				mActorDrag;			//	visualisation of drag
+	TActorDragPath*			mActorDragPath;		//	visualisation of drag
 
 private:
 	vec3f					mScreenDragTo;	//	where the player is dragging to
@@ -159,9 +162,10 @@ protected:
 	void			UpdateGamePackets();
 	bool			OnPacket(TGamePacket& Packet);
 	void			OnPacket(TGamePacket_FireRocket& Packet);
-	void			OnPacket(TGamePacket_CollisionRocketPlayer& Packet);
-	void			OnPacket(TGamePacket_CollisionRocketAndSentry& Packet);
-	void			OnPacket(TGamePacket_CollisionRocketAndAsteroidChunk& Packet);
+	void			OnPacket(TGamePacket_FireMissile& Packet);
+	void			OnPacket(TGamePacket_CollisionProjectileAndPlayer& Packet);
+	void			OnPacket(TGamePacket_CollisionProjectileAndSentry& Packet);
+	void			OnPacket(TGamePacket_CollisionProjectileAndAsteroidChunk& Packet);
 
 
 

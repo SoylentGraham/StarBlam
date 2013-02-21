@@ -180,12 +180,15 @@ float TActor::GetZ() const
 		case TActors::DeathStar:		return DEATHSTAR_Z;
 		case TActors::Stars:			return STARS_Z;
 		case TActors::Rocket:			return ROCKET_Z;
+		case TActors::Missile:			return ROCKET_Z;
 		case TActors::Drag:				return GUI_Z;
 		case TActors::AutoPath:			return GUI_Z;
+		case TActors::DragPath:			return GUI_Z;
 		case TActors::Explosion:		return EXPLOSION_Z;
-		case TActors::Sentry_Rocket:	return SENTRY_Z;
-		case TActors::Sentry_LaserBeam:	return SENTRY_Z;
-		case TActors::Sentry_Rotation:	return SENTRY_Z;
+		case TActors::SentryRocket:		return SENTRY_Z;
+		case TActors::SentryMissile:	return SENTRY_Z;
+		case TActors::SentryLaserBeam:	return SENTRY_Z;
+		case TActors::SentryRotation:	return SENTRY_Z;
 		case TActors::LaserBeam:		return LASERBEAM_Z;
 		case TActors::Asteroid:			return ASTEROID_Z;
 		case TActors::AsteroidChunk:	return ASTEROID_Z;
@@ -318,13 +321,17 @@ TActorDeathStar::TActorDeathStar(const TActorMeta& Meta,TWorld& World) :
 		SentryMeta.SetRotationDeg( AngleDeg );
 
 		TActorSentry* pNewSentry = NULL;
-		if ( i % 3 == 0 )
+		if ( i % 4 == 0 )
 		{
 			pNewSentry = World.CreateActor<TActorSentryLaserBeam>( SentryMeta );
 		}
-		else if ( i % 3 == 1 )
+		else if ( i % 4 == 1 )
 		{
 			pNewSentry = World.CreateActor<TActorSentryRotation>( SentryMeta );
+		}
+		else if ( i % 4 == 2 )
+		{
+			pNewSentry = World.CreateActor<TActorSentryMissile>( SentryMeta );
 		}
 		else
 		{
@@ -450,33 +457,10 @@ void TActorDrag::SetLine(const ofLine2& Line)
 }
 
 
-
-TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World) :
-	mVelocity			( FiringLine.mEnd - FiringLine.mStart ),
-	TActorDerivitive	( ActorMeta )
+vec2f TActorProjectile::GetGravityForce(TWorld& World)
 {
-	//	convert velocity to units/per sec
-	float VelSpeed = mVelocity.length();
-	ofLimit( VelSpeed, ROCKET_MIN_SPEED, ROCKET_MAX_SPEED );
-	mVelocity.normalize();
-	mVelocity *= VelSpeed;
+	vec2f Velocity;
 
-	auto& Transform = AddComponent<TComTransform>();
-
-	auto& Collision = AddComponent<TComCollision>();
-	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
-
-	SetLocalPosition( FiringLine.mStart );
-
-	//	show path
-	auto* pPath = World.CreateActor<TActorAutoPath>();
-	mAutoPath = pPath;
-	pPath->SetParent( GetRef(), World );
-}
-
-
-bool TActorRocket::Update(float TimeStep,TWorld& World)
-{
 	//	apply gravity forces
 	TCollisionShape RocketShape = GetWorldCollisionShape();
 	auto& GravityComponents = TComs::GetContainer<TComGravity>().mComponents;
@@ -499,16 +483,55 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 		if ( !GravityShape.IsInside( RocketShape.mCircle ) )
 			continue;
 		
+		float MaxDistance = RocketShape.mCircle.mRadius + GravityShape.mRadius;
+
 		//	draw in based on size of gravity field
 		vec2f DirToGravity = GravityShape.GetCenter() - RocketShape.GetCenter();
-		
-		//float Force = ofGetMathTime( DirToGravity.length(), 0.f, GravityShape.mRadius );	//	inverse
-		float Force = GravityShape.mRadius - DirToGravity.length();	//	inverse
+		float LengthToGravity = DirToGravity.length() - RocketShape.mCircle.mRadius;
+		float FactorToGravity = ( LengthToGravity / MaxDistance );
+		FactorToGravity *= FactorToGravity;
+		FactorToGravity = 1.f - FactorToGravity;	//	inverse so closest is 1
 		DirToGravity.normalize();
-		Force *= GRAVITY_FORCE_FACTOR;
-		
-		mVelocity += DirToGravity * Force * TimeStep;
+		DirToGravity *= FactorToGravity * GRAVITY_FORCE_FACTOR;
+		Velocity += DirToGravity;
 	}
+
+	return Velocity;
+}
+
+TActorProjectile::TActorProjectile(const TActorMeta& ActorMeta,TWorld& World) :
+	TActor	( ActorMeta )
+{
+	//	show path
+	auto* pPath = World.CreateActor<TActorAutoPath>();
+	mAutoPath = pPath;
+	pPath->SetParent( GetRef(), World );
+}
+
+
+TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World) :
+	TActorProjectileBase	( ActorMeta, World ),
+	mVelocity				( FiringLine.mEnd - FiringLine.mStart )
+{
+	//	convert velocity to units/per sec
+	float VelSpeed = mVelocity.length();
+	ofLimit( VelSpeed, ROCKET_MIN_SPEED, ROCKET_MAX_SPEED );
+	mVelocity.normalize();
+	mVelocity *= VelSpeed;
+
+	auto& Transform = AddComponent<TComTransform>();
+
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
+
+	SetLocalPosition( FiringLine.mStart );
+}
+
+
+bool TActorRocket::Update(float TimeStep,TWorld& World)
+{
+	vec2f GravityForce = GetGravityForce( World );
+	mVelocity += GravityForce;
 
 	vec2f Velocity = mVelocity;
 
@@ -528,13 +551,13 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 	return true;
 }
 
-void TActorRocket::OnChildReleased(TActorRef ChildRef,TWorld& World)
+void TActorProjectile::OnChildReleased(TActorRef ChildRef,TWorld& World)
 {
 	if ( mAutoPath == ChildRef )
 		mAutoPath = TActorRef();
 }
 
-Array<TActorRef> TActorRocket::GetChildren() const
+Array<TActorRef> TActorProjectile::GetChildren() const
 {
 	Array<TActorRef> Children;
 	if ( mAutoPath.IsValid() )
@@ -542,7 +565,7 @@ Array<TActorRef> TActorRocket::GetChildren() const
 	return Children;
 }
 
-void TActorRocket::OnPreDestroy(TWorld& World)
+void TActorProjectile::OnPreDestroy(TWorld& World)
 {
 	//	disconnect the path so it persists
 	if ( mAutoPath.IsValid() )
@@ -558,6 +581,83 @@ void TActorRocket::OnPreDestroy(TWorld& World)
 
 
 
+TActorMissile::TActorMissile(const ofShapePath2& FiringPath,const TActorMeta& ActorMeta,TWorld& World) :
+	TActorProjectileBase	( ActorMeta, World ),
+	mPath					( FiringPath ),
+	mPathDistance			( 0.f )
+{
+	auto& Transform = AddComponent<TComTransform>();
+	auto& Collision = AddComponent<TComCollision>();
+	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
+
+	SetLocalPosition( mPath.GetPosition(mPathDistance) );
+}
+
+void TActorMissile::AddVelocity(const vec2f& AdditionalVelocity)
+{
+	//	don't let velocity drop below a min
+	vec2f NewVelocity = mVelocity + AdditionalVelocity;
+	float LengthSq = NewVelocity.lengthSquared();
+	if ( LengthSq < ofNearZero )
+	{
+		NewVelocity = AdditionalVelocity;
+		LengthSq = AdditionalVelocity.lengthSquared();
+	}
+	
+	//	make sure it doesn't go below a min
+	if ( LengthSq < MISSILE_SPEED*MISSILE_SPEED )
+	{
+		NewVelocity.normalize();
+		NewVelocity *= sqrtf( LengthSq );
+	}
+
+	mVelocity = NewVelocity;
+}
+
+bool TActorMissile::Update(float TimeStep,TWorld& World)
+{
+	vec2f GravityForce = GetGravityForce( World );
+	AddVelocity( GravityForce );
+	vec2f Velocity = mVelocity * TimeStep;
+
+	//	are we still walking the path?
+	if ( mLastDelta.lengthSquared() <= 0.f )
+	{
+		//	get movement along path...
+		float PathStep = MISSILE_SPEED * TimeStep;
+		float PathPos = mPathDistance;
+		float NextPos = mPathDistance + PathStep;
+		mPathDistance += PathStep;
+		vec2f PathDelta = mPath.GetDelta( PathPos, NextPos );
+
+		//	if we're out of path, start just following the last segment
+		if ( PathDelta.lengthSquared() <= 0.f )
+		{
+			mLastDelta = mPath.GetTailNormal( MISSILE_SPEED/60.f ) * MISSILE_SPEED;
+			AddVelocity( mLastDelta );
+			//	just make sure we move this frame otherwise there's a glitch
+			Velocity += mLastDelta * TimeStep;
+		}
+		else
+		{
+			Velocity += PathDelta;	//	already timestep'd
+		}
+	}
+
+	//	move!
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( pTransform )
+	{
+		pTransform->mPosition.x += Velocity.x;
+		pTransform->mPosition.y += Velocity.y;
+
+		//	die if out of world
+		if ( gWorldBox.IsOutside( pTransform->mPosition ) )
+			return false;
+	}
+
+	return true;
+}
 
 TActorExplosion::TActorExplosion(const vec2f& Position,TWorld& World)
 {
@@ -817,35 +917,8 @@ bool TActorAutoPath::Update(float TimeStep,TWorld& World)
 
 	//	grab parent's latest position...
 	vec2f ParentPos = GetWorldPosition2();
-
-	//	empty path? initialise it
-	if ( mWorldPath.IsEmpty() )
-		mWorldPath.PushBack( ParentPos );
-
-	//	see if we need to add a new point
-	auto& PrevPos = mWorldPath.GetBack();
-	float DeltaLengthSq = (PrevPos - ParentPos).lengthSquared();
-	if ( DeltaLengthSq > PATH_MIN_SEGMENT_LENGTH*PATH_MIN_SEGMENT_LENGTH )
-		mWorldPath.PushBack( ParentPos );
+	UpdateTail( ParentPos );
 
 	return true;
 }
-
-void TActorAutoPath::Render(float TimeStep,const TRenderSettings& RenderSettings)
-{
-	TRenderSceneScope Scene(__FUNCTION__);
-	ofSetColor( GetColour() );
-	ofSetLineWidth( PATH_WIDTH );
-	ofFill();
-
-	//	rendering in world space
-	for ( int i=0;	i<mWorldPath.GetSize()-1;	i++ )
-	{
-		vec3f Start( mWorldPath[i].x, mWorldPath[i].y, GetZ() );
-		vec3f End( mWorldPath[i+1].x, mWorldPath[i+1].y, GetZ() );
-		ofLine( Start, End );
-	}
-}
-
-
 

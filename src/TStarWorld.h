@@ -13,9 +13,9 @@ private:
 	bool			TryCollision(const TCollision& Collision,TGame& Game,TActor& ActorA,TActor& ActorB);
 
 	void			OnCollision(const TCollision& Collision,TGame& Game,TActor& ActorA,TActor& ActorB)	{}	//	fall through for cases we dont really handle
-	void			OnCollision(const TCollision& Collision,TGame& Game,TActorRocket& ActorA,TActorDeathStar& ActorB);
-	void			OnCollision(const TCollision& Collision,TGame& Game,TActorRocket& ActorA,TActorSentry& ActorB);
-	void			OnCollision(const TCollision& Collision,TGame& Game,TActorRocket& ActorA,TActorAsteroidChunk& ActorB);
+	void			OnCollision(const TCollision& Collision,TGame& Game,TActorProjectile& ActorA,TActorDeathStar& ActorB);
+	void			OnCollision(const TCollision& Collision,TGame& Game,TActorProjectile& ActorA,TActorSentry& ActorB);
+	void			OnCollision(const TCollision& Collision,TGame& Game,TActorProjectile& ActorA,TActorAsteroidChunk& ActorB);
 };
 
 
