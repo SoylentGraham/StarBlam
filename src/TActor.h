@@ -13,10 +13,11 @@ class TActorSentry;
 #define STARS_Z		1
 #define DEATHSTAR_Z	2
 #define LASERBEAM_Z	3
-#define SENTRY_Z	4
-#define ROCKET_Z	5
-#define EXPLOSION_Z	6
-#define GUI_Z		7
+#define ASTEROID_Z	4
+#define SENTRY_Z	5
+#define ROCKET_Z	6
+#define EXPLOSION_Z	7
+#define GUI_Z		8
 #define DRAG_Z		GUI_Z
 
 #define	ROCKET_SIZE		20.f
@@ -34,7 +35,7 @@ class TActorSentry;
 #define LASERBEAM_MIN_LENGTH	30.f
 #define LASERBEAM_MAX_LENGTH	20000.f
 #define DRAG_WIDTH				10.f
-
+#define GRAVITY_FORCE_FACTOR	15.f
 
 
 namespace TActors
@@ -82,11 +83,12 @@ public:
 
 	virtual TActors::Type		GetType() const=0;
 	TActorRef					GetRef() const					{	return TActorRef( *this );	}
-	TActorRef					GetParent()						{	return mParent;	}
-	virtual Array<TActorRef>	GetChildren()					{	Array<TActorRef> NoChildren;	return NoChildren;	}
+	TActorRef					GetParent() const				{	return mParent;	}
+	virtual Array<TActorRef>	GetChildren() const				{	Array<TActorRef> NoChildren;	return NoChildren;	}
 	void						SetParent(TActorRef Parent);
-	bool						HasChild(TActorRef ChildRef);	//	look down the heirachy for this actor
-	virtual void				OnChildDestroyed(TActorRef ChildRef)	{}
+	bool						HasChild(TActorRef ChildRef) const;	//	look down the heirachy for this actor
+	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World)	{}
+	virtual void				OnChildAdded(TActor& Child,TWorld& World)		{}
 
 	virtual void				Render(float TimeStep,const TRenderSettings& RenderSettings);
 	virtual bool				Update(float TimeStep,TWorld& World);		//	return false to die
@@ -101,20 +103,22 @@ public:
 	vec3f					GetLocalPosition3() const 			{	vec2f Pos2 = GetLocalPosition2();	return vec3f( Pos2.x, Pos2.y, GetZ() );	}
 	vec2f					GetLocalPosition2() const;
 	void					SetLocalPosition(const vec2f& Pos);
-	TCollisionShape			GetWorldCollisionShape();
-	TCollisionShape			GetLocalCollisionShape();
+	TCollisionShape			GetWorldCollisionShape() const;
+	TCollisionShape			GetLocalCollisionShape() const;
 	TTransform				GetParentWorldTransform() const;
 	TTransform				GetWorldTransform() const;
 	void					SetWorldRotation(float AngleDeg);
 
+	ofShapeCircle2			GetTreeLocalCollisionShape(TWorld& World) const;		//	accumulate the collision shape of all children in the tree, localised to this
+
 	template<class TCOM>
-	TCOM*					GetComponent()					{	return GetComponentContainer<TCOM>().Find( GetRef() );	}
+	TCOM*					GetComponent()					{	return TComs::GetContainer<TCOM>().Find( GetRef() );	}
 	template<class TCOM>
-	const TCOM*				GetComponent() const			{	return GetComponentContainer<TCOM>().Find( GetRef() );	}
+	const TCOM*				GetComponent() const			{	return TComs::GetContainer<TCOM>().Find( GetRef() );	}
 	template<class TCOM>
-	TCOM&					AddComponent()					{	return GetComponentContainer<TCOM>().Add( TComMeta( GetRef() ) );	}
+	TCOM&					AddComponent()					{	return TComs::GetContainer<TCOM>().Add( TComMeta( GetRef() ) );	}
 	template<class TCOM,class TMETA>
-	TCOM&					AddComponent(const TMETA& Meta)	{	return GetComponentContainer<TCOM>().Add( TComMeta( GetRef() ), Meta );	}
+	TCOM&					AddComponent(const TMETA& Meta)	{	return TComs::GetContainer<TCOM>().Add( TComMeta( GetRef() ), Meta );	}
 
 	inline bool				operator==(const TActor& Actor) const		{	return this == &Actor;	}
 	inline bool				operator==(const TActors::Type& Type) const	{	return GetType() == Type;	}
@@ -148,9 +152,9 @@ public:
 
 	virtual bool				Update(float TimeStep,TWorld& World);		//	return false to die
 	virtual ofColour			GetColour() const			{	return mColour;	}
-	virtual Array<TActorRef>	GetChildren();
+	virtual Array<TActorRef>	GetChildren() const;
 	void						GetSentrys(TWorld& World,Array<TActorSentry*>& Sentrys);
-	virtual void				OnChildDestroyed(TActorRef ChildRef);
+	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World);
 
 public:
 	ofColour			mColour;
@@ -284,9 +288,9 @@ public:
 	TActorSentryLaserBeam(const TActorMeta& ActorMeta,TWorld& World);
 
 	virtual bool				Update(float TimeStep,TWorld& World);
-	virtual void				OnChildDestroyed(TActorRef ChildRef);
+	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World);
 	virtual void				SetState(TActorSentryState::Type State);
-	virtual Array<TActorRef>	GetChildren();
+	virtual Array<TActorRef>	GetChildren() const;
 
 public:
 	TActorRef				mLaserBeam;
@@ -319,8 +323,10 @@ public:
 	TActorAsteroid(const TActorMeta& ActorMeta,float Radius,TWorld& World);
 
 	virtual bool				Update(float TimeStep,TWorld& World);
-	virtual Array<TActorRef>	GetChildren()							{	return mChunks;	}
-	virtual void				OnChildDestroyed(TActorRef ChildRef)	{	mChunks.Remove( ChildRef );	}
+	virtual Array<TActorRef>	GetChildren() const									{	return mChunks;	}
+	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World)	{	mChunks.Remove( ChildRef );	RecalcGravity( World );	}
+	virtual void				OnChildAdded(TActor& Child,TWorld& World)			{	RecalcGravity( World );	}
+	void						RecalcGravity(TWorld& World);
 
 public:
 	Array<TActorRef>			mChunks;

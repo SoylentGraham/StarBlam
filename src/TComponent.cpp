@@ -52,3 +52,44 @@ void TComCollision::Render(const TRenderSettings& RenderSettings,const TCollisio
 
 }
 
+
+
+
+ofShapeCircle2 TComGravity::GetWorldGravityShape(const TTransform& WorldTransform)
+{
+	//	if our shape isn't valid, then see if we can generate it from the collision shape
+	if ( !mLocalShape.IsValid() )
+	{
+		//	base it on the collision shape
+		auto* pCollision = GetComponent<TComCollision>();
+		if ( pCollision )
+			SetLocalGravityShape( pCollision->mShape.mCircle );
+	}
+
+	ofShapeCircle2 Circle = mLocalShape;
+	Circle.Transform( WorldTransform );
+	Circle.mRadius = Circle.mRadius*2.f;
+	
+	return Circle;
+}
+
+void TComGravity::Render(const TRenderSettings& RenderSettings,const TTransform& WorldTransform,const TMaterial& Material)
+{
+	//	render gravity field
+	ofShapeCircle2 GravityCircle = GetWorldGravityShape( WorldTransform );
+	if ( !GravityCircle.IsValid() )
+		return;
+
+	ofNoFill();
+	ofSetColor( ofColour(255,255,255) );
+
+	vec3f Pos( GravityCircle.mPosition, Material.mZ );
+	ofCircle( Pos, GravityCircle.mRadius );
+}
+
+void TComGravity::SetLocalGravityShape(const ofShapeCircle2& BoundsShape)
+{
+	mLocalShape = BoundsShape;	
+}
+
+

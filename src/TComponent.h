@@ -6,6 +6,8 @@
 class TActor;
 class TRenderSettings;
 class TMaterial;
+template<class TCOM>
+class TComContainer;
 
 
 //---------------------------------
@@ -37,7 +39,6 @@ public:
 };
 
 
-
 //	componenent types
 namespace TComs
 {
@@ -49,7 +50,13 @@ namespace TComs
 		Gravity,		//	has attracting-physics
 		OwnerPlayer,	//	reference to owner
 	};
+
+	template<class TCOM>
+	TCOM*					GetComponent(const TActorRef& Ref);
+	template<class TCOM>
+	TComContainer<TCOM>&	GetContainer();
 };
+
 
 
 //	generic meta information for a componenet
@@ -88,63 +95,7 @@ public:
 	Array<TCOM*>	mComponents;
 };
 
-template<class TCOM>
-template<class TCOMMETA>
-TCOM& TComContainer<TCOM>::Add(const TCOMMETA& ComMeta)
-{
-	//	delete existing just in case
-	Destroy( ComMeta.GetRef() );
 
-	TCOM* pNewCom = new TCOM( ComMeta );
-	mComponents.PushBack( pNewCom );
-	return *pNewCom;
-}
-
-template<class TCOM>
-template<class TCOMMETA,class TDERIVEMETA>
-TCOM& TComContainer<TCOM>::Add(const TCOMMETA& ComMeta,const TDERIVEMETA& Meta)
-{
-	//	delete existing just in case
-	Destroy( ComMeta.GetRef() );
-
-	TCOM* pNewCom = new TCOM( ComMeta, Meta );
-	mComponents.PushBack( pNewCom );
-	return *pNewCom;
-}
-
-template<class TCOM>
-int TComContainer<TCOM>::FindIndex(const TActorRef& ComRef)
-{
-	for ( int i=0;	i<mComponents.GetSize();	i++ )
-	{
-		TCOM* pCom = mComponents[i];
-		if ( !pCom )
-			continue;
-		if ( *pCom == ComRef )
-			return i;
-	}
-	return -1;
-}
-	
-template<class TCOM>
-void TComContainer<TCOM>::Destroy(const TActorRef& ComRef)
-{
-	int Index = FindIndex( ComRef );
-	if ( Index < 0 )
-		return;
-
-	delete mComponents[Index];
-	mComponents[Index] = NULL;
-	mComponents.RemoveBlock( Index, 1 );
-}
-
-
-template<class TCOM>
-TComContainer<TCOM>& GetComponentContainer()
-{
-	static TComContainer<TCOM> gContainer;
-	return gContainer;
-}
 
 
 template<TComs::Type COMTYPE>
@@ -155,6 +106,12 @@ protected:
 		TComMeta	( Meta )
 	{
 	}
+
+	//	get a sibling component
+	template<class TCOM>
+	TCOM*	GetComponent()				{	return TComs::GetContainer<TCOM>().Find( GetRef() );	}	
+	template<class TCOM>
+	const TCOM*	GetComponent() const	{	return TComs::GetContainer<TCOM>().Find( GetRef() );	}
 };
 
 
@@ -224,4 +181,103 @@ public:
 
 	void		Render(const TRenderSettings& RenderSettings,const TCollisionShape& WorldShape,const TMaterial& Material);
 };
+
+
+
+class TComGravityMeta
+{
+public:
+	TComGravityMeta()
+	{
+	}
+
+public:
+	ofShapeCircle2		mLocalShape;
+};
+
+class TComGravity : public TCom<TComs::Gravity>, public TComGravityMeta
+{
+public:
+	TComGravity(const TComMeta& ComMeta,const TComGravityMeta& Meta=TComGravityMeta()) :
+		TCom	( ComMeta )
+	{
+	}
+
+	void			Render(const TRenderSettings& RenderSettings,const TTransform& WorldTransform,const TMaterial& Material);
+	void			SetLocalGravityShape(const ofShapeCircle2& BoundsShape);
+	ofShapeCircle2	GetWorldGravityShape(const TTransform& WorldTransform);
+};
+
+
+
+
+
+
+
+
+
+template<class TCOM>
+TComContainer<TCOM>& TComs::GetContainer()
+{
+	static TComContainer<TCOM> gContainer;
+	return gContainer;
+}
+
+template<class TCOM>
+TCOM* TComs::GetComponent(const TActorRef& Ref)
+{
+	auto& Container = GetContainer<TCOM>();
+	return Container.Find( Ref );
+}
+
+
+template<class TCOM>
+template<class TCOMMETA>
+TCOM& TComContainer<TCOM>::Add(const TCOMMETA& ComMeta)
+{
+	//	delete existing just in case
+	Destroy( ComMeta.GetRef() );
+
+	TCOM* pNewCom = new TCOM( ComMeta );
+	mComponents.PushBack( pNewCom );
+	return *pNewCom;
+}
+
+template<class TCOM>
+template<class TCOMMETA,class TDERIVEMETA>
+TCOM& TComContainer<TCOM>::Add(const TCOMMETA& ComMeta,const TDERIVEMETA& Meta)
+{
+	//	delete existing just in case
+	Destroy( ComMeta.GetRef() );
+
+	TCOM* pNewCom = new TCOM( ComMeta, Meta );
+	mComponents.PushBack( pNewCom );
+	return *pNewCom;
+}
+
+template<class TCOM>
+int TComContainer<TCOM>::FindIndex(const TActorRef& ComRef)
+{
+	for ( int i=0;	i<mComponents.GetSize();	i++ )
+	{
+		TCOM* pCom = mComponents[i];
+		if ( !pCom )
+			continue;
+		if ( *pCom == ComRef )
+			return i;
+	}
+	return -1;
+}
+	
+template<class TCOM>
+void TComContainer<TCOM>::Destroy(const TActorRef& ComRef)
+{
+	int Index = FindIndex( ComRef );
+	if ( Index < 0 )
+		return;
+
+	delete mComponents[Index];
+	mComponents[Index] = NULL;
+	mComponents.RemoveBlock( Index, 1 );
+}
 

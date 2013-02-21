@@ -88,7 +88,7 @@ void TWorld::Disconnect(TActor& Actor)
 	TActor* pParent = GetActor( Actor.GetParent() );
 	if ( pParent )
 	{
-		pParent->OnChildDestroyed( Actor.GetRef() );
+		pParent->OnChildDestroyed( Actor.GetRef(), *this );
 		Actor.SetParent( TActorRef() );
 	}
 

@@ -16,6 +16,29 @@ TActor::TActor(const TActorMeta& Meta)
 	}
 }
 
+//	accumulate the collision shape of all children in the tree, localised to this
+ofShapeCircle2 TActor::GetTreeLocalCollisionShape(TWorld& World) const
+{
+	//	start with our shape...
+	ofShapeCircle2 Shape = GetLocalCollisionShape().mCircle;
+
+	//	accumulate children's shapes
+	Array<TActorRef> Children = GetChildren();
+	for ( int i=0;	i<Children.GetSize();	i++ )
+	{
+		auto* pChild = World.GetActor( Children[i] );
+		if ( !pChild )
+			continue;
+
+		ofShapeCircle2 ChildShape = pChild->GetTreeLocalCollisionShape( World );
+		if ( !ChildShape.IsValid() )
+			continue;
+		Shape.Accumulate( ChildShape );
+	}
+
+	return Shape;
+}
+
 TRef TActor::GetOwnerPlayer() const
 {
 	//	look for componenent...
@@ -34,7 +57,7 @@ TActor::~TActor()
 }
 
 
-bool TActor::HasChild(TActorRef ChildRef)
+bool TActor::HasChild(TActorRef ChildRef) const
 {
 	//	look down the heirachy for this actor
 	Array<TActorRef> Children = GetChildren();
@@ -106,7 +129,7 @@ TTransform TActor::GetWorldTransform() const
 }
 
 
-TCollisionShape TActor::GetWorldCollisionShape()
+TCollisionShape TActor::GetWorldCollisionShape() const
 {
 	TCollisionShape LocalShape = GetLocalCollisionShape();
 	TTransform Transform = GetParentWorldTransform();
@@ -115,16 +138,15 @@ TCollisionShape TActor::GetWorldCollisionShape()
 }
 
 
-TCollisionShape TActor::GetLocalCollisionShape()		
+TCollisionShape TActor::GetLocalCollisionShape() const
 {
 	//	get the collision shape
-	TComCollision* pCollision = GetComponent<TComCollision>();
+	auto* pCollision = GetComponent<TComCollision>();
 	if ( !pCollision )
 		return TCollisionShape();
 
 	//	check if there's a transform to apply to the shape...
-	TComTransform* pTransform = GetComponent<TComTransform>();
-	
+	auto* pTransform = GetComponent<TComTransform>();	
 	if ( pTransform )
 	{
 		//	transform
@@ -140,16 +162,21 @@ float TActor::GetZ() const
 {
 	switch ( GetType() )
 	{
-	case TActors::DeathStar:			return DEATHSTAR_Z;
+		case TActors::DeathStar:		return DEATHSTAR_Z;
 		case TActors::Stars:			return STARS_Z;
 		case TActors::Rocket:			return ROCKET_Z;
 		case TActors::Drag:				return GUI_Z;
 		case TActors::Explosion:		return EXPLOSION_Z;
 		case TActors::Sentry_Rocket:	return SENTRY_Z;
 		case TActors::Sentry_LaserBeam:	return SENTRY_Z;
+		case TActors::Sentry_Rotation:	return SENTRY_Z;
 		case TActors::LaserBeam:		return LASERBEAM_Z;
+		case TActors::Asteroid:			return ASTEROID_Z;
+		case TActors::AsteroidChunk:	return ASTEROID_Z;
 	};
 
+	//	unhandled case
+	assert(false);
 	return 0.f;
 }
 
@@ -233,15 +260,25 @@ void TActor::Render(float TimeStep,const TRenderSettings& RenderSettings)
 	{
 		pTransform->Render( RenderSettings, GetParentWorldTransform(), Material );
 	}
+
+	//	render grvaity
+	auto* pGravity = GetComponent<TComGravity>();
+	if ( pGravity )
+	{
+		pGravity->Render( RenderSettings, GetWorldTransform(), Material );
+	}
 }
 
 
 
 TActorDeathStar::TActorDeathStar(const TActorMeta& Meta,TWorld& World) :
-	mColour		( Meta.mColour ),
-	mInitialPos	( Meta.mPosition ),
-	mOffset		( 0.f )
+	TActorDerivitive	( Meta ),
+	mColour				( Meta.mColour ),
+	mInitialPos			( Meta.mPosition ),
+	mOffset				( 0.f )
 {
+	AddComponent<TComGravity>();
+
 	//	make a collisoin component
 	auto& Collision = AddComponent<TComCollision>();
 	Collision.mShape.mCircle = ofShapeCircle2( DEATHSTAR_SIZE );
@@ -296,7 +333,7 @@ void TActorDeathStar::GetSentrys(TWorld& World,Array<TActorSentry*>& Sentrys)
 	}
 }
 	
-Array<TActorRef> TActorDeathStar::GetChildren()
+Array<TActorRef> TActorDeathStar::GetChildren() const
 {
 	Array<TActorRef> Children;
 	for ( int i=0;	i<mSentrys.GetSize();	i++ )
@@ -333,7 +370,7 @@ bool TActorDeathStar::Update(float TimeStep,TWorld& World)
 }
 
 	
-void TActorDeathStar::OnChildDestroyed(TActorRef ChildRef)
+void TActorDeathStar::OnChildDestroyed(TActorRef ChildRef,TWorld& World)
 {
 	mSentrys.Remove( ChildRef );
 }
@@ -419,9 +456,41 @@ TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta
 
 bool TActorRocket::Update(float TimeStep,TWorld& World)
 {
+	//	apply gravity forces
+	TCollisionShape RocketShape = GetWorldCollisionShape();
+	auto& GravityComponents = TComs::GetContainer<TComGravity>().mComponents;
+	TRef OwnerPlayer = GetOwnerPlayer();
+	for ( int i=0;	i<GravityComponents.GetSize();	i++ )
+	{
+		auto& Gravity = *GravityComponents[i];
+		//	skip any gravity components owned by the same player
+		auto* pOwner = TComs::GetComponent<TComOwnerPlayer>( Gravity.GetRef() );
+		if ( pOwner && OwnerPlayer == pOwner->mPlayer )
+			continue;
+
+		//	see if we're inside that gravity field
+		auto* pActor = World.GetActor( Gravity.GetRef() );
+		if ( !pActor )
+			continue;
+		ofShapeCircle2 GravityShape = Gravity.GetWorldGravityShape( pActor->GetWorldTransform() );
+		if ( !GravityShape.IsValid() )
+			continue;
+		if ( !GravityShape.IsInside( RocketShape.mCircle ) )
+			continue;
+		
+		//	draw in based on size of gravity field
+		vec2f DirToGravity = GravityShape.GetCenter() - RocketShape.GetCenter();
+		
+		//float Force = ofGetMathTime( DirToGravity.length(), 0.f, GravityShape.mRadius );	//	inverse
+		float Force = GravityShape.mRadius - DirToGravity.length();	//	inverse
+		DirToGravity.normalize();
+		Force *= GRAVITY_FORCE_FACTOR;
+		
+		mVelocity += DirToGravity * Force * TimeStep;
+	}
+
 	vec2f Velocity = mVelocity;
 
-	//	add gravity forces
 
 	//	move!
 	auto* pTransform = GetComponent<TComTransform>();
@@ -510,7 +579,7 @@ void TActorSentryLaserBeam::SetState(TActorSentryState::Type State)
 	mState = State;
 }
 
-Array<TActorRef> TActorSentryLaserBeam::GetChildren()
+Array<TActorRef> TActorSentryLaserBeam::GetChildren() const
 {
 	Array<TActorRef> Children;
 	Children.PushBack( mLaserBeam );
@@ -609,7 +678,7 @@ ofLine2 TActorLaserBeam::GetWorldBeamLine() const
 
 
 
-void TActorSentryLaserBeam::OnChildDestroyed(TActorRef ChildRef)
+void TActorSentryLaserBeam::OnChildDestroyed(TActorRef ChildRef,TWorld& World)
 {
 	if ( mLaserBeam == ChildRef )
 		mLaserBeam = TActorRef();
@@ -621,6 +690,8 @@ void TActorSentryLaserBeam::OnChildDestroyed(TActorRef ChildRef)
 
 TActorAsteroid::TActorAsteroid(const TActorMeta& ActorMeta,float Radius,TWorld& World)
 {
+	AddComponent<TComGravity>();
+
 	auto& Transform = AddComponent<TComTransform>();
 	Transform.GetTransform() = ActorMeta.GetTransform();
 
@@ -640,7 +711,21 @@ TActorAsteroid::TActorAsteroid(const TActorMeta& ActorMeta,float Radius,TWorld& 
 			continue;
 		mChunks.PushBack( pChunk->GetRef() );
 		pChunk->SetParent( GetRef() );
+		OnChildAdded( *pChunk, World );
 	}
+}
+
+void TActorAsteroid::RecalcGravity(TWorld& World)
+{
+	//	get the gravity component
+	auto* pGravity = GetComponent<TComGravity>();
+	assert( pGravity );
+	if ( !pGravity )
+		return;
+
+	//	get the accumulated shape
+	ofShapeCircle2 Shape = GetTreeLocalCollisionShape(World);
+	pGravity->SetLocalGravityShape( Shape );
 }
 
 
