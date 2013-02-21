@@ -72,7 +72,7 @@ public:
 
 namespace SoyPhysics
 {
-	bool	GetIntersection(const ofShapeCircle2& ShapeA,const ofShapeCircle2& ShapeB,TIntersection& Intersection);
+	bool	GetIntersection(const TCollisionShape& ShapeA,const TCollisionShape& ShapeB,TIntersection& Intersection);
 };
 
 

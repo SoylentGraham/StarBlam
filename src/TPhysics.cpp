@@ -2,19 +2,40 @@
 
 
 
-
-bool SoyPhysics::GetIntersection(const ofShapeCircle2& ShapeA,const ofShapeCircle2& ShapeB,TIntersection& Intersection)
+template<class SHAPEA,class SHAPEB>
+bool GetIntersection(const SHAPEA& ShapeA,const SHAPEB& ShapeB,TIntersection& Intersection)
 {
-	TIntersection2 Intersection2 = ShapeA.GetIntersection( ShapeB );
-	if ( !Intersection2 )
-		return false;
+	Intersection = ofShape::GetIntersection( ShapeA, ShapeB );
+	return Intersection;
+}
 
-	auto& Delta = Intersection2.mDelta;
 
-	Intersection.mIsValid = true;
-	Intersection.mMidIntersection = ShapeA.mPosition + ( Delta*0.5f);
-	Intersection.mCollisionPointA = ShapeA.mPosition + ( Delta.normalized() * ShapeA.mRadius );
-	Intersection.mCollisionPointB = ShapeB.mPosition + ( Delta.normalized() * -ShapeB.mRadius );
 
-	return true;
+bool SoyPhysics::GetIntersection(const TCollisionShape& ShapeA,const TCollisionShape& ShapeB,TIntersection& Intersection)
+{
+	//	what do we have to work with...
+	if ( ShapeA.mPolygon.IsValid() )
+	{
+		if ( ShapeB.mPolygon.IsValid() )
+		{
+			return GetIntersection( ShapeA.mPolygon, ShapeB.mPolygon, Intersection );
+		}
+		else if ( ShapeB.mCircle.IsValid() )
+		{
+			return GetIntersection( ShapeA.mPolygon, ShapeB.mCircle, Intersection );
+		}
+	}
+	else if ( ShapeA.mCircle.IsValid() )
+	{
+		if ( ShapeB.mPolygon.IsValid() )
+		{
+			return GetIntersection( ShapeB.mPolygon, ShapeA.mCircle, Intersection );
+		}
+		else if ( ShapeB.mCircle.IsValid() )
+		{
+			return GetIntersection( ShapeA.mCircle, ShapeB.mCircle, Intersection );
+		}
+	}
+
+	return false;
 }

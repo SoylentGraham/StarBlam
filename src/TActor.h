@@ -29,9 +29,10 @@ class TActorSentry;
 #define EXPLOSION_MAX_SIZE		40.f
 #define EXPLOSION_INITIAL_SIZE	2.f
 #define LASERBEAM_RETRACT_SPEED	2000.f
-#define LASERBEAM_EXTEND_SPEED	1000.f
+#define LASERBEAM_EXTEND_SPEED	20000.f
 #define LASERBEAM_WIDTH			20.f
 #define LASERBEAM_MIN_LENGTH	30.f
+#define LASERBEAM_MAX_LENGTH	20000.f
 #define DRAG_WIDTH				10.f
 
 
@@ -76,6 +77,7 @@ public:
 	TActor()
 	{
 	}
+	TActor(const TActorMeta& Meta);
 	virtual ~TActor();
 
 	virtual TActors::Type		GetType() const=0;
@@ -90,6 +92,8 @@ public:
 	virtual bool				Update(float TimeStep,TWorld& World);		//	return false to die
 	
 	virtual ofColour		GetColour() const					{	return ofColour(255,255,0);	}
+	TRef					GetOwnerPlayer() const;
+
 	float					GetZ() const;
 	vec3f					GetWorldPosition3() const 			{	vec2f Pos2 = GetWorldPosition2();	return vec3f( Pos2.x, Pos2.y, GetZ() );	}
 	vec2f					GetWorldPosition2() const;
@@ -129,6 +133,11 @@ public:
 	static const TActors::Type TYPE = ACTORTYPE;
 
 public:
+	TActorDerivitive()	{}
+	TActorDerivitive(const TActorMeta& Meta) : 
+		TActor	( Meta )
+	{
+	}
 	virtual TActors::Type	GetType() const	{	return ACTORTYPE;	}
 };
 
@@ -190,7 +199,6 @@ public:
 	virtual bool			Update(float TimeStep,TWorld& World);
 	
 public:
-	TRef				mPlayerRef;		//	player which fired this rocket so we can ignore collisions from the source player (ie. at firing time)
 	vec2f				mVelocity;
 };
 

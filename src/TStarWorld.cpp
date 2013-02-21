@@ -10,7 +10,7 @@ void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocke
 	//	if the rocket hits it's owner player, ignore the collision
 	TPlayer* pPlayer = Game.GetPlayer( ActorB.GetRef() );
 	assert( pPlayer );
-	if ( pPlayer && pPlayer->mRef == ActorA.mPlayerRef )
+	if ( pPlayer && pPlayer->mRef == ActorA.GetOwnerPlayer() )
 		return;
 
 	//	kablammo!
@@ -27,7 +27,7 @@ void TStarWorld::OnCollision(const TCollision& Collision,TGame& Game,TActorRocke
 	//	if the rocket hits it's owner player, ignore the collision
 	TPlayer* pPlayer = Game.GetPlayer( ActorB.GetRef() );
 	assert( pPlayer );
-	if ( pPlayer && pPlayer->mRef == ActorA.mPlayerRef )
+	if ( pPlayer && pPlayer->mRef == ActorA.GetOwnerPlayer() )
 		return;
 
 	//	kablammo!
@@ -59,4 +59,14 @@ bool TStarWorld::HandleCollision(const TCollision& Collision,TGame& Game,TActor&
 
 	//	unhandled
 	return false;
+}
+
+bool TStarWorld::CanCollide(const TActor& a,const TActor& b)
+{
+	bool aIsAsteroid = ( a.GetType() == TActors::Asteroid || a.GetType() == TActors::AsteroidChunk );
+	bool bIsAsteroid = ( b.GetType() == TActors::Asteroid || b.GetType() == TActors::AsteroidChunk );
+	if ( aIsAsteroid && bIsAsteroid )
+		return false;
+
+	return true;
 }

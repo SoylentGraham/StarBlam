@@ -68,7 +68,17 @@ public:
 class TMaterial
 {
 public:
+	TMaterial(float z,ofColour Colour,bool Outline=false) :
+		mZ			( z ),
+		mColour		( Colour ),
+		mOutline	( Outline )
+	{
+	}
+
+public:
+	bool		mOutline;
 	ofColour	mColour;
+	float		mZ;
 };
 
 

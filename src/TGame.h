@@ -6,10 +6,9 @@
 #include "TGamePackets.h"
 #include "TActor.h"
 
-#define ENABLE_STARS	true
-
+#define ENABLE_STARS		true
 #define FINGER_SCREEN_SIZE	10.f	//	may vary for different devices at different DPI...
-
+#define ASTEROID_COUNT		15
 
 class TGame;
 

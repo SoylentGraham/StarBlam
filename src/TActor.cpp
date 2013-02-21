@@ -7,6 +7,26 @@
 ofShapeBox3 gWorldBox( vec3f(-WORLD_WIDTH/2,-300,4), vec3f(WORLD_WIDTH/2,300,1000) );
 
 
+TActor::TActor(const TActorMeta& Meta)
+{
+	//	if initialised with an owner, set it up
+	if ( Meta.mOwnerPlayer.IsValid() )
+	{
+		AddComponent<TComOwnerPlayer>( Meta.mOwnerPlayer );
+	}
+}
+
+TRef TActor::GetOwnerPlayer() const
+{
+	//	look for componenent...
+	auto* pOwnerPlayer = GetComponent<TComOwnerPlayer>();
+	if ( pOwnerPlayer )
+		return pOwnerPlayer->mPlayer;
+	else
+		return TRef();
+}
+
+
 TActor::~TActor()
 {
 	//	if we still have a parent, this actor hasn't been destroyed from the world...
@@ -197,31 +217,21 @@ bool TActor::Update(float TimeStep,TWorld& World)
 
 void TActor::Render(float TimeStep,const TRenderSettings& RenderSettings)
 {
-	//	default renders the collision shape
-	//	get the collision shape
-	TCollisionShape Shape = GetWorldCollisionShape();
-	if ( !Shape.IsValid() )
-		return;
-
 	TRenderSceneScope Scene(__FUNCTION__);
+	TMaterial Material( GetZ(), GetColour(), true );
 
-	//	render the circle
-	if ( Shape.mCircle.IsValid() )
+	//	grab collision component and render it
+	auto* pCollision = GetComponent<TComCollision>();
+	if ( pCollision )
 	{
-		ofFill();
-		ofSetColor( GetColour(), 0.5f );
-
-		auto& CirclePos = Shape.mCircle.mPosition;
-
-		//	render collision shape
-		ofCircle( CirclePos.x, CirclePos.y, GetZ(), Shape.mCircle.mRadius );
+		pCollision->Render( RenderSettings, GetWorldCollisionShape(), Material );
 	}
 
-	//	render center
+	//	render transform
+	auto* pTransform = GetComponent<TComTransform>();
+	if ( pTransform )
 	{
-		auto& Center = Shape.GetCenter();
-		ofSetColor( ofColour(255), 1.0f );
-		ofBox( Center.x, Center.y, GetZ(), 4.f );
+		pTransform->Render( RenderSettings, GetParentWorldTransform(), Material );
 	}
 }
 
@@ -390,7 +400,7 @@ void TActorDrag::SetLine(const ofLine2& Line)
 
 TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World) :
 	mVelocity			( FiringLine.mEnd - FiringLine.mStart ),
-	mPlayerRef			( ActorMeta.mOwnerPlayer )
+	TActorDerivitive	( ActorMeta )
 {
 	//	convert velocity to units/per sec
 	float VelSpeed = mVelocity.length();
@@ -460,6 +470,7 @@ bool TActorExplosion::Update(float TimeStep,TWorld& World)
 
 
 TActorSentry::TActorSentry(const TActorMeta& ActorMeta) :
+	TActor				( ActorMeta ),
 	mColour				( ActorMeta.mColour )
 {
 	auto& Transform = AddComponent<TComTransform>();
@@ -549,8 +560,7 @@ bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
 	{
 		//	retract
 		mLength -= LASERBEAM_RETRACT_SPEED * TimeStep;
-		if ( mLength < LASERBEAM_MIN_LENGTH )
-			mLength = LASERBEAM_MIN_LENGTH;
+		mLength = ofMax( mLength, LASERBEAM_MIN_LENGTH );
 		return true;
 	}
 
@@ -572,6 +582,7 @@ bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
 	if ( EndLength > mLength )
 	{
 		mLength += LASERBEAM_EXTEND_SPEED * TimeStep;
+		mLength = ofMin( mLength, LASERBEAM_MAX_LENGTH );
 	}
 
 	//	stop short

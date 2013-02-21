@@ -55,7 +55,8 @@ void TWorld::DoCollisions(Array<TCollisionActor>& CollisionActors)
 	Array<TCollisionTest> CollisionTests;
 	for ( int a=0;	a<CollisionActors.GetSize();	a++ )
 		for ( int b=a+1;	b<CollisionActors.GetSize();	b++ )
-			CollisionTests.PushBack( TCollisionTest( CollisionActors[a], CollisionActors[b] ) );
+			if ( CanCollide( *CollisionActors[a].mActor, *CollisionActors[b].mActor ) )
+				CollisionTests.PushBack( TCollisionTest( CollisionActors[a], CollisionActors[b] ) );
 
 	//	execute tests
 	for ( int t=CollisionTests.GetSize()-1;	t>=0;	t-- )
@@ -65,7 +66,7 @@ void TWorld::DoCollisions(Array<TCollisionActor>& CollisionActors)
 		auto& ColB = *CollisionTests[t].mActorB;
 
 		TIntersection Intersection;
-		if ( !SoyPhysics::GetIntersection( ColA.mShape.mCircle, ColB.mShape.mCircle, Intersection ) )
+		if ( !SoyPhysics::GetIntersection( ColA.mShape, ColB.mShape, Intersection ) )
 		{
 			CollisionTests.RemoveBlock( t, 1 );
 			continue;

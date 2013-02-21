@@ -5,6 +5,7 @@
 //	included here for cyclic reasons
 class TActor;
 class TRenderSettings;
+class TMaterial;
 
 
 //---------------------------------
@@ -43,10 +44,10 @@ namespace TComs
 	enum Type
 	{
 		Invalid,
-		Transform,	//	render transform
-		Collision,	//	can have collisoin
-		Gravity,	//	has attracting-physics
-		Player,		//	reference to owner
+		Transform,		//	render transform
+		Collision,		//	can have collisoin
+		Gravity,		//	has attracting-physics
+		OwnerPlayer,	//	reference to owner
 	};
 };
 
@@ -173,13 +174,15 @@ public:
 
 	TTransform&			GetTransform()			{	return *this;	}
 	const TTransform&	GetTransform() const	{	return *this;	}
+
+	void				Render(const TRenderSettings& RenderSettings,const TTransform& ParentTransform,const TMaterial& Material);
 };
 
 
-class TComPlayerMeta
+class TComOwnerPlayerMeta
 {
 public:
-	TComPlayerMeta(TRef Player) :
+	TComOwnerPlayerMeta(TRef Player) :
 		mPlayer		( Player )
 	{
 	}
@@ -188,12 +191,12 @@ public:
 	TRef		mPlayer;
 };
 
-class TComPlayer : public TCom<TComs::Player>, public TComPlayerMeta
+class TComOwnerPlayer : public TCom<TComs::OwnerPlayer>, public TComOwnerPlayerMeta
 {
 public:
-	TComPlayer(const TComMeta& ComMeta,const TComPlayerMeta& Meta) :
-		TCom			( ComMeta ),
-		TComPlayerMeta	( Meta )
+	TComOwnerPlayer(const TComMeta& ComMeta,const TComOwnerPlayerMeta& Meta) :
+		TCom				( ComMeta ),
+		TComOwnerPlayerMeta	( Meta )
 	{
 	}
 };
@@ -219,6 +222,6 @@ public:
 	{
 	}
 
-	void		Render(const TRenderSettings& RenderSettings,const TTransform& WorldTransform);
+	void		Render(const TRenderSettings& RenderSettings,const TCollisionShape& WorldShape,const TMaterial& Material);
 };
 

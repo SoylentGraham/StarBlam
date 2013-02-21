@@ -3,34 +3,52 @@
 
 
 
-void TComCollision::Render(const TRenderSettings& RenderSettings,const TTransform& WorldTransform)
+void TComTransform::Render(const TRenderSettings& RenderSettings,const TTransform& ParentTransform,const TMaterial& Material)
 {
-	/*
-	//	get the collision shape
-	TCollisionShape Shape = GetWorldCollisionShape();
-	if ( !Shape.IsValid() )
+	TTransform WorldTransform = GetTransform();
+	ParentTransform.Transform( WorldTransform );
+
+	//	render a box at the center...
+	ofSetColor( Material.mColour );
+	ofBox( WorldTransform.mPosition.x, WorldTransform.mPosition.y, Material.mZ, 4.f );
+
+	//	and it's direction
+	vec2f Normal = ofNormalFromAngle( WorldTransform.GetRotationDeg() );
+	Normal += WorldTransform.mPosition;
+	ofLine(	WorldTransform.mPosition.x, WorldTransform.mPosition.y, Material.mZ,
+			Normal.x, Normal.y, Material.mZ );
+
+}
+
+
+void TComCollision::Render(const TRenderSettings& RenderSettings,const TCollisionShape& WorldShape,const TMaterial& Material)
+{
+	if ( !WorldShape.IsValid() )
 		return;
 
-	TRenderSceneScope Scene(__FUNCTION__);
-
-	//	render the circle
-	if ( Shape.mCircle.IsValid() )
-	{
+	if ( Material.mOutline )
+		ofNoFill();
+	else
 		ofFill();
-		ofSetColor( GetColour(), 0.5f );
+	ofSetColor( Material.mColour );
 
-		auto& CirclePos = Shape.mCircle.mPosition;
-
-		//	render collision shape
-		ofCircle( CirclePos.x, CirclePos.y, GetZ(), Shape.mCircle.mRadius );
-	}
-
-	//	render center
+	//	if the polygon is valid, that takes precendent
+	if ( WorldShape.mPolygon.IsValid() )
 	{
-		auto& Center = Shape.GetCenter();
-		ofSetColor( ofColour(255), 1.0f );
-		ofBox( Center.x, Center.y, GetZ(), 4.f );
+		vec3f a( WorldShape.mPolygon.mTriangle[0], Material.mZ );
+		vec3f b( WorldShape.mPolygon.mTriangle[1], Material.mZ );
+		vec3f c( WorldShape.mPolygon.mTriangle[2], Material.mZ );
+		ofTriangle( a, b, c );
 	}
-*/
+	else if ( WorldShape.mCircle.IsValid() )
+	{
+		vec3f Pos( WorldShape.mCircle.mPosition, Material.mZ );
+		ofCircle( Pos, WorldShape.mCircle.mRadius );
+	}
+	else
+	{
+		//	not valid at all?
+	}
+
 }
 

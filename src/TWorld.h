@@ -58,6 +58,7 @@ public:
 
 protected:	//	high level
 	virtual bool		HandleCollision(const TCollision& Collision,TGame& Game,TActor& ActorA,TActor& ActorB)=0;
+	virtual bool		CanCollide(const TActor& a,const TActor& b)=0;
 
 private:
 	void				DoCollisions(Array<TCollisionActor>& CollisionActors);

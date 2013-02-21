@@ -46,7 +46,7 @@ bool TGame::Init()
 	BufferArray<vec2f,2> PlayerPositions;
 	PlayerPositions.PushBack( vec2f(-WORLD_WIDTH/4,0) );
 	PlayerPositions.PushBack( vec2f(WORLD_WIDTH/4,0) );
-	BufferArray<vec3f,5> AsteroidPositionRad;	//	z is radius
+	BufferArray<vec3f,ASTEROID_COUNT> AsteroidPositionRad;	//	z is radius
 	for ( int i=0;	i<AsteroidPositionRad.MaxSize();	i++ )
 	{
 		vec2f Pos( ofRandom( -80, 80 ), ofRandom( -600, 600 ) );
@@ -251,7 +251,7 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 		ofShapeCircle2 SentryShape = WorldToScreen( SentryWorldShape, Sentry.GetWorldPosition3().z );
 
 		//	get distance from finger...
-		TIntersection2 Intersection = FingerShape.GetIntersection( SentryShape );
+		TIntersection Intersection = FingerShape.GetIntersection( SentryShape );
 		if ( !Intersection )
 			continue;
 
