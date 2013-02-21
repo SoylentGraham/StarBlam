@@ -84,12 +84,15 @@ void TWorld::Disconnect(TActor& Actor)
 	//	remove all parent/child links and add to destroy list
 	mDestroyList.PushBackUnique( Actor.GetRef() );	
 
+	//	callback before destruction in case it wants to spawn something or detatch a child
+	Actor.OnPreDestroy( *this );
+
 	//	remove from parent
 	TActor* pParent = GetActor( Actor.GetParent() );
 	if ( pParent )
 	{
-		pParent->OnChildDestroyed( Actor.GetRef(), *this );
-		Actor.SetParent( TActorRef() );
+		pParent->OnChildReleased( Actor.GetRef(), *this );
+		Actor.SetParent( TActorRef(), *this );
 	}
 
 	//	disconnect children

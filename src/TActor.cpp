@@ -54,6 +54,9 @@ TActor::~TActor()
 {
 	//	if we still have a parent, this actor hasn't been destroyed from the world...
 	assert( !mParent.IsValid() );
+
+	//	destroy components
+	TComs::DestroyComponents( GetRef() );
 }
 
 
@@ -78,13 +81,14 @@ bool TActor::HasChild(TActorRef ChildRef) const
 	return false;
 }
 
-void TActor::SetParent(TActorRef Parent)
+void TActor::SetParent(TActorRef Parent,TWorld& World)
 {
 	//	shouldnt overwrite parent unless it's with no-parent
 	if ( Parent.IsValid() )
 	{
 		assert( !mParent.IsValid() );
 	}
+	TActorRef OldParent = mParent;
 	mParent = Parent;
 
 	//	ensure the tree is valid...
@@ -94,6 +98,17 @@ void TActor::SetParent(TActorRef Parent)
 		auto Children = pParentActor->GetChildren();
 		auto ChildRef = GetRef();
 		assert( Children.Find( ChildRef ) );
+	}
+	else if ( OldParent.IsValid() )
+	{
+		//	disconnecting from parent
+		auto* pParent = World.GetActor( OldParent );
+		if ( pParent )
+		{
+			//	get transform
+			//TTransform ParentTransform = pParent->GetWorldTransform();
+			pParent->OnChildReleased( GetRef(), World );
+		}
 	}
 }
 
@@ -166,6 +181,7 @@ float TActor::GetZ() const
 		case TActors::Stars:			return STARS_Z;
 		case TActors::Rocket:			return ROCKET_Z;
 		case TActors::Drag:				return GUI_Z;
+		case TActors::AutoPath:			return GUI_Z;
 		case TActors::Explosion:		return EXPLOSION_Z;
 		case TActors::Sentry_Rocket:	return SENTRY_Z;
 		case TActors::Sentry_LaserBeam:	return SENTRY_Z;
@@ -317,7 +333,7 @@ TActorDeathStar::TActorDeathStar(const TActorMeta& Meta,TWorld& World) :
 
 		//	set heirachy
 		mSentrys.PushBack( pNewSentry );
-		pNewSentry->SetParent( GetRef() );
+		pNewSentry->SetParent( GetRef(), World );
 	}
 
 }
@@ -370,7 +386,7 @@ bool TActorDeathStar::Update(float TimeStep,TWorld& World)
 }
 
 	
-void TActorDeathStar::OnChildDestroyed(TActorRef ChildRef,TWorld& World)
+void TActorDeathStar::OnChildReleased(TActorRef ChildRef,TWorld& World)
 {
 	mSentrys.Remove( ChildRef );
 }
@@ -451,6 +467,11 @@ TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta
 	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
 
 	SetLocalPosition( FiringLine.mStart );
+
+	//	show path
+	auto* pPath = World.CreateActor<TActorAutoPath>();
+	mAutoPath = pPath;
+	pPath->SetParent( GetRef(), World );
 }
 
 
@@ -507,6 +528,33 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 	return true;
 }
 
+void TActorRocket::OnChildReleased(TActorRef ChildRef,TWorld& World)
+{
+	if ( mAutoPath == ChildRef )
+		mAutoPath = TActorRef();
+}
+
+Array<TActorRef> TActorRocket::GetChildren() const
+{
+	Array<TActorRef> Children;
+	if ( mAutoPath.IsValid() )
+		Children.PushBack( mAutoPath );
+	return Children;
+}
+
+void TActorRocket::OnPreDestroy(TWorld& World)
+{
+	//	disconnect the path so it persists
+	if ( mAutoPath.IsValid() )
+	{
+		auto* pPath = World.GetActor( mAutoPath );
+		if ( pPath )
+		{
+			pPath->SetParent( TActorRef(), World );
+		}
+	}
+}
+
 
 
 
@@ -560,7 +608,7 @@ TActorSentryLaserBeam::TActorSentryLaserBeam(const TActorMeta& ActorMeta,TWorld&
 	LaserBeamMeta.mPosition = ActorMeta.mPosition;
 	auto* pLaserBeam = World.CreateActor<TActorLaserBeam>( LaserBeamMeta );
 	mLaserBeam = pLaserBeam;
-	pLaserBeam->SetParent( GetRef() );
+	pLaserBeam->SetParent( GetRef(), World );
 }
 
 
@@ -678,7 +726,7 @@ ofLine2 TActorLaserBeam::GetWorldBeamLine() const
 
 
 
-void TActorSentryLaserBeam::OnChildDestroyed(TActorRef ChildRef,TWorld& World)
+void TActorSentryLaserBeam::OnChildReleased(TActorRef ChildRef,TWorld& World)
 {
 	if ( mLaserBeam == ChildRef )
 		mLaserBeam = TActorRef();
@@ -710,7 +758,7 @@ TActorAsteroid::TActorAsteroid(const TActorMeta& ActorMeta,float Radius,TWorld& 
 		if ( !pChunk )
 			continue;
 		mChunks.PushBack( pChunk->GetRef() );
-		pChunk->SetParent( GetRef() );
+		pChunk->SetParent( GetRef(), World );
 		OnChildAdded( *pChunk, World );
 	}
 }
@@ -757,5 +805,47 @@ bool TActorAsteroidChunk::Update(float TimeStep,TWorld& World)
 		return false;
 	return true;
 }
+
+
+
+
+
+bool TActorAutoPath::Update(float TimeStep,TWorld& World)
+{
+	if ( !GetParent() )
+		return true;
+
+	//	grab parent's latest position...
+	vec2f ParentPos = GetWorldPosition2();
+
+	//	empty path? initialise it
+	if ( mWorldPath.IsEmpty() )
+		mWorldPath.PushBack( ParentPos );
+
+	//	see if we need to add a new point
+	auto& PrevPos = mWorldPath.GetBack();
+	float DeltaLengthSq = (PrevPos - ParentPos).lengthSquared();
+	if ( DeltaLengthSq > PATH_MIN_SEGMENT_LENGTH*PATH_MIN_SEGMENT_LENGTH )
+		mWorldPath.PushBack( ParentPos );
+
+	return true;
+}
+
+void TActorAutoPath::Render(float TimeStep,const TRenderSettings& RenderSettings)
+{
+	TRenderSceneScope Scene(__FUNCTION__);
+	ofSetColor( GetColour() );
+	ofSetLineWidth( PATH_WIDTH );
+	ofFill();
+
+	//	rendering in world space
+	for ( int i=0;	i<mWorldPath.GetSize()-1;	i++ )
+	{
+		vec3f Start( mWorldPath[i].x, mWorldPath[i].y, GetZ() );
+		vec3f End( mWorldPath[i+1].x, mWorldPath[i+1].y, GetZ() );
+		ofLine( Start, End );
+	}
+}
+
 
 

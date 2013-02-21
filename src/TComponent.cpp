@@ -2,6 +2,32 @@
 #include "TActor.h"
 
 
+//	global definition
+Array<TComContainerBase*> TComs::Private::gContainerRegistry;
+
+
+
+TComContainerBase::TComContainerBase()
+{
+	TComs::Private::gContainerRegistry.PushBackUnique( this );
+}
+
+TComContainerBase::~TComContainerBase()
+{
+	TComs::Private::gContainerRegistry.Remove( this );
+}
+
+
+void TComs::DestroyComponents(const TActorRef& Ref)
+{
+	//	go over the component registery and remove any components for this actor
+	for ( int i=0;	i<Private::gContainerRegistry.GetSize();	i++ )
+	{
+		auto& Container = *Private::gContainerRegistry[i];
+		Container.Destroy( Ref );
+	}
+}
+
 
 void TComTransform::Render(const TRenderSettings& RenderSettings,const TTransform& ParentTransform,const TMaterial& Material)
 {
@@ -91,5 +117,6 @@ void TComGravity::SetLocalGravityShape(const ofShapeCircle2& BoundsShape)
 {
 	mLocalShape = BoundsShape;	
 }
+
 
 

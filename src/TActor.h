@@ -20,12 +20,12 @@ class TActorSentry;
 #define GUI_Z		8
 #define DRAG_Z		GUI_Z
 
-#define	ROCKET_SIZE		20.f
+#define	ROCKET_SIZE		10.f
+#define ROCKET_MIN_SPEED		350.f	//	unit/sec
+#define ROCKET_MAX_SPEED		350.f	//	unit/sec
 #define DEATHSTAR_SIZE	110.f
 #define SENTRY_RADIUS	10.f
 #define SENTRY_COUNT	10
-#define ROCKET_MIN_SPEED		400.f	//	unit/sec
-#define ROCKET_MAX_SPEED		400.f	//	unit/sec
 #define EXPLOSION_GROW_RATE		200.f	//	unit/sec
 #define EXPLOSION_MAX_SIZE		40.f
 #define EXPLOSION_INITIAL_SIZE	2.f
@@ -35,8 +35,9 @@ class TActorSentry;
 #define LASERBEAM_MIN_LENGTH	30.f
 #define LASERBEAM_MAX_LENGTH	20000.f
 #define DRAG_WIDTH				10.f
-#define GRAVITY_FORCE_FACTOR	15.f
-
+#define GRAVITY_FORCE_FACTOR	20.f
+#define PATH_WIDTH				1.f
+#define PATH_MIN_SEGMENT_LENGTH		4.f
 
 namespace TActors
 {
@@ -54,6 +55,7 @@ namespace TActors
 		LaserBeam,
 		Asteroid,
 		AsteroidChunk,
+		AutoPath,			//	automatically generate path from parent's movement
 	};
 };
 
@@ -85,10 +87,11 @@ public:
 	TActorRef					GetRef() const					{	return TActorRef( *this );	}
 	TActorRef					GetParent() const				{	return mParent;	}
 	virtual Array<TActorRef>	GetChildren() const				{	Array<TActorRef> NoChildren;	return NoChildren;	}
-	void						SetParent(TActorRef Parent);
+	void						SetParent(TActorRef Parent,TWorld& World);
 	bool						HasChild(TActorRef ChildRef) const;	//	look down the heirachy for this actor
-	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World)	{}
+	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World)	{}
 	virtual void				OnChildAdded(TActor& Child,TWorld& World)		{}
+	virtual void				OnPreDestroy(TWorld& World)		{	}
 
 	virtual void				Render(float TimeStep,const TRenderSettings& RenderSettings);
 	virtual bool				Update(float TimeStep,TWorld& World);		//	return false to die
@@ -154,7 +157,7 @@ public:
 	virtual ofColour			GetColour() const			{	return mColour;	}
 	virtual Array<TActorRef>	GetChildren() const;
 	void						GetSentrys(TWorld& World,Array<TActorSentry*>& Sentrys);
-	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World);
+	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World);
 
 public:
 	ofColour			mColour;
@@ -200,10 +203,14 @@ class TActorRocket : public TActorDerivitive<TActors::Rocket>
 public:
 	TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta,TWorld& World);
 
-	virtual bool			Update(float TimeStep,TWorld& World);
-	
+	virtual bool				Update(float TimeStep,TWorld& World);
+	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World);
+	virtual Array<TActorRef>	GetChildren() const;
+	virtual void				OnPreDestroy(TWorld& World);
+
 public:
 	vec2f				mVelocity;
+	TActorRef			mAutoPath;
 };
 
 
@@ -288,7 +295,7 @@ public:
 	TActorSentryLaserBeam(const TActorMeta& ActorMeta,TWorld& World);
 
 	virtual bool				Update(float TimeStep,TWorld& World);
-	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World);
+	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World);
 	virtual void				SetState(TActorSentryState::Type State);
 	virtual Array<TActorRef>	GetChildren() const;
 
@@ -324,7 +331,7 @@ public:
 
 	virtual bool				Update(float TimeStep,TWorld& World);
 	virtual Array<TActorRef>	GetChildren() const									{	return mChunks;	}
-	virtual void				OnChildDestroyed(TActorRef ChildRef,TWorld& World)	{	mChunks.Remove( ChildRef );	RecalcGravity( World );	}
+	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World)	{	mChunks.Remove( ChildRef );	RecalcGravity( World );	}
 	virtual void				OnChildAdded(TActor& Child,TWorld& World)			{	RecalcGravity( World );	}
 	void						RecalcGravity(TWorld& World);
 
@@ -360,3 +367,16 @@ public:
 	float			mHealth;	//	0..1
 };
 
+
+class TActorAutoPath : public TActorDerivitive<TActors::AutoPath>
+{
+public:
+	TActorAutoPath(TWorld& World)	{}
+
+	virtual ofColour	GetColour() const					{	return ofColour(200,200,200);	}
+	virtual bool		Update(float TimeStep,TWorld& World);
+	virtual void		Render(float TimeStep,const TRenderSettings& RenderSettings);
+
+public:
+	Array<vec2f>		mWorldPath;	//	path stored in world space
+};

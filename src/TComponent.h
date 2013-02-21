@@ -6,6 +6,7 @@
 class TActor;
 class TRenderSettings;
 class TMaterial;
+class TComContainerBase;
 template<class TCOM>
 class TComContainer;
 
@@ -29,6 +30,7 @@ public:
 	TActor*			GetActor()								{	return const_cast<TActor*>( mActor );	}
 	const TActor*	GetActor() const						{	return mActor;	}
 
+	operator		bool() const							{	return IsValid();	}
 	inline bool		operator==(const TActorRef& Ref) const	{	return mActor == Ref.mActor;	}
 	inline bool		operator==(const TActor& Actor) const	{	return mActor == &Actor;	}
 	template<typename T>
@@ -51,10 +53,16 @@ namespace TComs
 		OwnerPlayer,	//	reference to owner
 	};
 
+	void					DestroyComponents(const TActorRef& Ref);
 	template<class TCOM>
 	TCOM*					GetComponent(const TActorRef& Ref);
 	template<class TCOM>
 	TComContainer<TCOM>&	GetContainer();
+
+	namespace Private
+	{
+		extern Array<TComContainerBase*>	gContainerRegistry;
+	};
 };
 
 
@@ -77,8 +85,21 @@ public:
 };
 
 
+class TComContainerBase
+{
+public:
+	TComContainerBase();
+	virtual ~TComContainerBase();
+
+	virtual void	Destroy(const TActorRef& ComRef)=0;
+	bool			Contains(const TActorRef& ComRef)		{	return FindIndex( ComRef ) != -1;	}
+
+protected:
+	virtual int		FindIndex(const TActorRef& ComRef)=0;
+};
+
 template<class TCOM>
-class TComContainer
+class TComContainer : public TComContainerBase
 {
 public:
 	template<class TCOMMETA>
@@ -86,10 +107,10 @@ public:
 	template<class TCOMMETA,class TDERIVEMETA>
 	TCOM&			Add(const TCOMMETA& ComMeta,const TDERIVEMETA& Meta);
 	TCOM*			Find(const TActorRef& ComRef)		{	int Index = FindIndex( ComRef );	return (Index < 0) ? NULL : mComponents[Index];	}
-	void			Destroy(const TActorRef& ComRef);
+	virtual void	Destroy(const TActorRef& ComRef);
 
 protected:
-	int				FindIndex(const TActorRef& ComRef);
+	virtual int		FindIndex(const TActorRef& ComRef);
 
 public:
 	Array<TCOM*>	mComponents;
