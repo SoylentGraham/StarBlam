@@ -24,6 +24,8 @@ TRenderSceneScope::TRenderSceneScope(const char* SceneName)
 {
 	ofPushMatrix();
 	ofPushStyle();
+	ofSetupGraphicDefaults();
+	ofDisableBlendMode(); 
 }
 
 
