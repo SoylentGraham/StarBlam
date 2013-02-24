@@ -3,8 +3,7 @@
 
 
 
-//ofShapeBox3 gWorldBox( vec3f(-1000,-600,0), vec3f(1000,600,1000) );
-ofShapeBox3 gWorldBox( vec3f(-WORLD_WIDTH/2,-300,4), vec3f(WORLD_WIDTH/2,300,1000) );
+ofShapeBox3 gWorldBox( vec3f(-WORLD_WIDTH/2,-400,4), vec3f(WORLD_WIDTH/2,400,1000) );
 
 
 TActor::TActor(const TActorMeta& Meta)
@@ -535,20 +534,15 @@ bool TActorRocket::Update(float TimeStep,TWorld& World)
 
 	vec2f Velocity = mVelocity;
 
-
 	//	move!
 	auto* pTransform = GetComponent<TComTransform>();
 	if ( pTransform )
 	{
 		pTransform->mPosition.x += Velocity.x * TimeStep;
 		pTransform->mPosition.y += Velocity.y * TimeStep;
-
-		//	die if out of world
-		if ( gWorldBox.IsOutside( pTransform->mPosition ) )
-			return false;
 	}
 
-	return true;
+	return TActorProjectile::Update( TimeStep, World );
 }
 
 void TActorProjectile::OnChildReleased(TActorRef ChildRef,TWorld& World)
@@ -576,6 +570,19 @@ void TActorProjectile::OnPreDestroy(TWorld& World)
 			pPath->SetParent( TActorRef(), World );
 		}
 	}
+}
+
+
+bool TActorProjectile::Update(float TimeStep,TWorld& World)
+{
+	//	destroy if outside the world
+	vec2f WorldPosition = GetWorldPosition2();
+
+	//	die if out of world
+	if ( gWorldBox.IsOutside( WorldPosition ) )
+		return false;
+
+	return TActor::Update( TimeStep, World );
 }
 
 
@@ -650,13 +657,9 @@ bool TActorMissile::Update(float TimeStep,TWorld& World)
 	{
 		pTransform->mPosition.x += Velocity.x;
 		pTransform->mPosition.y += Velocity.y;
-
-		//	die if out of world
-		if ( gWorldBox.IsOutside( pTransform->mPosition ) )
-			return false;
 	}
 
-	return true;
+	return TActorProjectile::Update( TimeStep, World );
 }
 
 TActorExplosion::TActorExplosion(const vec2f& Position,TWorld& World)

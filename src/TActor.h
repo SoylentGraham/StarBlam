@@ -207,6 +207,7 @@ class TActorProjectile : public TActor
 public:
 	TActorProjectile(const TActorMeta& ActorMeta,TWorld& World);
 
+	virtual bool				Update(float TimeStep,TWorld& World);
 	virtual void				OnChildReleased(TActorRef ChildRef,TWorld& World);
 	virtual Array<TActorRef>	GetChildren() const;
 	virtual void				OnPreDestroy(TWorld& World);
