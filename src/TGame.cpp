@@ -1,16 +1,6 @@
 #include "TGame.h"
 
 
-namespace TLGame
-{
-	TRef AllocPlayerRef()
-	{
-		static TRef LastRef( 0 );
-		LastRef.mRef++;
-		return LastRef;
-	}
-}
-
 
 vec2f TPlayerDrag::GetWorldDragTo(TGame& Game,float z) const
 {
@@ -19,19 +9,13 @@ vec2f TPlayerDrag::GetWorldDragTo(TGame& Game,float z) const
 
 
 
-TPlayerMeta::TPlayerMeta(const TString& Name,const ofColour& Colour) :
-	mName	( Name ),
-	mColour	( Colour ),
-	mRef	( TLGame::AllocPlayerRef() )
-{
-}
 
-
-TGame::TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2) :
-	mGameState	( TGameState::PlayerOneTurn )
+TGame::TGame(const TGameMeta& GameMeta) :
+	mGameState	( TGameState::PlayerOneTurn ),
+	mGameMeta	( GameMeta )
 {
-	mPlayers.PushBack( Player1 );
-	mPlayers.PushBack( Player2 );
+	mPlayers.PushBack( GameMeta.mPlayerA );
+	mPlayers.PushBack( GameMeta.mPlayerB );
 }
 
 
@@ -139,9 +123,6 @@ void TGame::Render(float TimeStep)
 
 void TGame::RenderWorld(float TimeStep)
 {
-	//	render game background
-	ofClear( ofColour(30,30,30) );
-
 	//	render world entities
 	TRenderSettings RenderSettings;
 	mWorld.Render( TimeStep, RenderSettings );

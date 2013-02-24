@@ -39,11 +39,9 @@
   <PropertyGroup>
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">bin\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">obj\$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateManifest>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">bin\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">obj\$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectName)_debug</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectName)</TargetName>
@@ -99,6 +97,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofShape.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyNet.cpp" />
+    <ClCompile Include="src\TApp.cpp" />
+    <ClCompile Include="src\TState.cpp" />
+    <ClCompile Include="src\TGameMeta.cpp" />
     <ClCompile Include="src\TStarWorld.cpp" />
     <ClCompile Include="src\TComponent.cpp" />
     <ClCompile Include="src\TPhysics.cpp" />
@@ -112,10 +114,11 @@
     <ClCompile Include="src\TGame.cpp" />
     <ClCompile Include="src\TGamePackets.cpp" />
     <ClCompile Include="src\TRender.cpp" />
+    <ClCompile Include="src\TStateFrontEnd.cpp" />
     <ClCompile Include="src\TWorld.cpp" />
-    <ClCompile Include="src\testApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyNet.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUI.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUI2DPad.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUIBaseDraws.h" />
@@ -173,14 +176,17 @@
     <ClInclude Include="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.h" />
     <ClInclude Include="..\..\..\addons\ofxXmlSettings\libs\tinyxml.h" />
     <ClInclude Include="src\main.h" />
+    <ClInclude Include="src\TApp.h" />
+    <ClInclude Include="src\TState.h" />
+    <ClInclude Include="src\TGameMeta.h" />
     <ClInclude Include="src\TStarWorld.h" />
     <ClInclude Include="src\TActor.h" />
     <ClInclude Include="src\TComponent.h" />
     <ClInclude Include="src\TGame.h" />
     <ClInclude Include="src\TGamePackets.h" />
     <ClInclude Include="src\TRender.h" />
+    <ClInclude Include="src\TStateFrontEnd.h" />
     <ClInclude Include="src\TWorld.h" />
-    <ClInclude Include="src\testApp.h" />
     <ClInclude Include="src\TPhysics.h" />
   </ItemGroup>
   <ItemGroup>

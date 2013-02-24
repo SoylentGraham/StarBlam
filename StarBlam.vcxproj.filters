@@ -16,9 +16,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\testApp.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\TWorld.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -47,6 +44,21 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\TStarWorld.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TApp.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TGameMeta.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TState.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyNet.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TStateFrontEnd.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -81,9 +93,6 @@
       <Filter>addons\ofxXmlSettings\libs</Filter>
     </ClInclude>
     <ClInclude Include="src\main.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\testApp.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofxSoylent.h">
@@ -270,6 +279,21 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\TStarWorld.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TApp.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TGameMeta.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TState.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyNet.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TStateFrontEnd.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

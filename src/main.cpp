@@ -1,5 +1,5 @@
 #include "Main.h"
-#include "testApp.h"
+#include "TApp.h"
 #include "ofAppGlutWindow.h"
 
 //========================================================================
@@ -15,7 +15,10 @@ int main( )
 	ofSetupOpenGL(&window, Res.x, Res.y, OF_WINDOW);			// <-------- setup the GL context
 
 	//	core window/global setup
-	window.setWindowPosition( 600, 200 );
+	vec2f ScreenSize( ofGetScreenWidth(), ofGetScreenHeight() );
+	ScreenSize -= Res;
+	ScreenSize /= 2;
+	window.setWindowPosition( ScreenSize.x, ScreenSize.y );
 	ofSetVerticalSync(true);
 
 	//	line antialiasing
@@ -27,6 +30,6 @@ int main( )
 	// this kicks off the running of my app
 	// can be OF_WINDOW or OF_FULLSCREEN
 	// pass in width and height too:
-	ofRunApp( new testApp());
+	ofRunApp( new TApp());
 
 }

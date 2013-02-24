@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Main.h"
+#include "TGameMeta.h"
 #include "TWorld.h"
 #include "TStarWorld.h"
 #include "TGamePackets.h"
@@ -39,18 +40,6 @@ public:
 };
 
 
-class TPlayerMeta
-{
-public:
-	TPlayerMeta(const TString& Name,const ofColour& Colour);
-
-	inline bool	operator==(const TRef& Ref) const	{	return mRef == Ref;	}
-
-public:
-	ofColour	mColour;
-	TString		mName;
-	TRef		mRef;
-};
 
 
 class TPlayer : public TPlayerMeta
@@ -124,7 +113,7 @@ private:
 class TGame
 {
 public:
-	TGame(const TPlayerMeta& Player1,const TPlayerMeta& Player2);
+	TGame(const TGameMeta& GameMeta);
 
 	bool			Init();
 
@@ -178,5 +167,6 @@ public:
 	Array<TPlayer>			mPlayers;
 	TGameState::Type		mGameState;
 	Array<TPlayerDrag>		mPendingDrags;
+	TGameMeta				mGameMeta;
 };
 
