@@ -18,10 +18,9 @@ namespace TGamePackets
 };
 
 
-class TGamePacket
+class TGamePacket : public SoyPacket<TGamePackets::Type>
 {
 public:
-	virtual TGamePackets::Type	GetType() const=0;
 };
 
 
@@ -37,18 +36,9 @@ public:
 
 
 
-class TGamePacketContainer : public ofMutex
+class TGamePacketContainer : public SoyPacketContainer<TGamePackets::Type PACKETTYPE>
 {
 public:
-
-	//	clone this packet and push it
-	template<class PACKET>
-	void					PushPacket(const PACKET& Packet);
-	void					PushPacket(TGamePacket* pPacket);
-	TGamePacket*			PopPacket();
-
-protected:
-	Array<TGamePacket*>		mPackets;
 };
 
 
