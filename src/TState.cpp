@@ -3,11 +3,6 @@
 #include "TApp.h"
 
 
-TState::TState(TApp& App) :
-	mApp	( App )
-{
-}
-	
 
 TGame*& TState::GetGame()
 {

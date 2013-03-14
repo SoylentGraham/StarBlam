@@ -105,38 +105,38 @@ void TActor::SetParent(TActorRef Parent,TWorld& World)
 		if ( pParent )
 		{
 			//	get transform
-			//TTransform ParentTransform = pParent->GetWorldTransform();
+			//TTransform2 ParentTransform = pParent->GetWorldTransform();
 			pParent->OnChildReleased( GetRef(), World );
 		}
 	}
 }
 
 
-TTransform TActor::GetParentWorldTransform() const
+TTransform2 TActor::GetParentWorldTransform() const
 {
-	TTransform Transform;
+	TTransform2 Transform;
 
 	//	get parent's transform
 	const TActor* pParent = mParent.GetActor();
 	if ( pParent )
 	{
-		TTransform ParentTransform = pParent->GetWorldTransform();
+		auto ParentTransform = pParent->GetWorldTransform();
 		ParentTransform.Transform( Transform );
 	}
 
 	return Transform;
 }
 
-TTransform TActor::GetWorldTransform() const
+TTransform2 TActor::GetWorldTransform() const
 {
 	//	get local transform
-	TTransform Transform;
+	TTransform2 Transform;
 	auto* pTransform = GetComponent<TComTransform>();
 	if ( pTransform )
 		Transform = pTransform->GetTransform();
 
 	//	get parent's transform
-	TTransform ParentTransform = GetParentWorldTransform();
+	auto ParentTransform = GetParentWorldTransform();
 	ParentTransform.Transform( Transform );
 
 	return Transform;
@@ -146,7 +146,7 @@ TTransform TActor::GetWorldTransform() const
 TCollisionShape TActor::GetWorldCollisionShape() const
 {
 	TCollisionShape LocalShape = GetLocalCollisionShape();
-	TTransform Transform = GetParentWorldTransform();
+	auto Transform = GetParentWorldTransform();
 	LocalShape.Transform( Transform );
 	return LocalShape;
 }
@@ -202,7 +202,7 @@ float TActor::GetZ() const
 void TActor::SetWorldRotation(float AngleDeg)
 {
 	//	need to compensate for parent's rotation
-	TTransform ParentTransform = GetParentWorldTransform();
+	TTransform2 ParentTransform = GetParentWorldTransform();
 	AngleDeg -= ParentTransform.GetRotationDeg();
 
 	//	grab transform to change
@@ -248,7 +248,7 @@ vec2f TActor::GetLocalPosition2() const
 vec2f TActor::GetWorldPosition2() const 			
 {
 	vec2f LocalPosition = GetLocalPosition2();
-	TTransform WorldTransform = GetParentWorldTransform();
+	auto WorldTransform = GetParentWorldTransform();
 	WorldTransform.Transform( LocalPosition );
 	return LocalPosition;
 }
@@ -821,7 +821,7 @@ ofLine2 TActorLaserBeam::GetWorldBeamLine() const
 	vec2f Pos = GetWorldPosition2();
 
 	//	get rotation
-	TTransform WorldTransform = GetWorldTransform();
+	auto WorldTransform = GetWorldTransform();
 	vec2f Normal = ofNormalFromAngle( WorldTransform.GetRotationDeg() );
 
 	return ofLine2( Pos, Pos + (Normal*mLength) );	

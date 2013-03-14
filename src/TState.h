@@ -5,19 +5,18 @@ class TApp;
 class TGame;
 
 
-class TState
+class TState : public Soy::TState<TApp>
 {
 public:
-	TState(TApp& App);
-	virtual ~TState()			{}
-
-	virtual void	Update(float TimeStep)=0;	//	update
-	virtual void	Render(float TimeStep)=0;	//	render
-	virtual bool	Exit()						{	return true;	}	//	keep exiting until true (finished)
+	TState(TApp& App) :
+		Soy::TState<TApp>	( App ),
+		mApp				( App )
+	{
+	}
 
 	TGame*&			GetGame();
 
-protected:
+public:
 	TApp&	mApp;
 };
 

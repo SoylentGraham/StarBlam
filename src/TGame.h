@@ -115,8 +115,9 @@ class TGame
 public:
 	TGame(const TGameMeta& GameMeta);
 
-	bool			Init();
+	SoyRef			GetRef() const			{	return SoyRef("Game");	}	//	will be module ref
 
+	bool			Init();
 	void			Update(float TimeStep);
 	void			UpdateInput(SoyInput& Input);
 
@@ -127,7 +128,7 @@ public:
 
 	//	world sim->game
 	template<class TPACKET>
-	void			PushPacket(const TPACKET& Packet)	{	mGamePackets.PushPacket( Packet );	}
+	void			PushPacket(const TPACKET& Packet)	{	mGamePackets.PushPacket( SoyPacketMeta( GetRef() ), Packet );	}
 	
 	//	utils
 	TPlayer*		GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
@@ -149,17 +150,17 @@ protected:
 
 	//	real
 	void			UpdateGamePackets();
-	bool			OnPacket(TGamePacket& Packet);
-	void			OnPacket(TGamePacket_FireRocket& Packet);
-	void			OnPacket(TGamePacket_FireMissile& Packet);
-	void			OnPacket(TGamePacket_CollisionProjectileAndPlayer& Packet);
-	void			OnPacket(TGamePacket_CollisionProjectileAndSentry& Packet);
-	void			OnPacket(TGamePacket_CollisionProjectileAndAsteroidChunk& Packet);
+	bool			OnPacket(const SoyPacketContainer& Packet);
+	void			OnPacket(const TGamePacket_FireRocket& Packet);
+	void			OnPacket(const TGamePacket_FireMissile& Packet);
+	void			OnPacket(const TGamePacket_CollisionProjectileAndPlayer& Packet);
+	void			OnPacket(const TGamePacket_CollisionProjectileAndSentry& Packet);
+	void			OnPacket(const TGamePacket_CollisionProjectileAndAsteroidChunk& Packet);
 
 
 
 public:
-	TGamePacketContainer	mGamePackets;
+	SoyPacketManager		mGamePackets;
 	ofRectangle				mOrthoViewport;
 	TGameCamera				mGameCamera;
 	ofCamera				mCamera;

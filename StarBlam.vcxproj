@@ -55,7 +55,7 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src;..\..\..\addons\ofxUI\src;..\..\..\addons\ofxSoylent\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src;..\..\..\addons\ofxUI\src;..\..\..\addons\ofxSoylent\src;..\..\..\addons\ofxNetwork\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
@@ -78,7 +78,7 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat />
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src;;..\..\..\addons\ofxNetwork\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
@@ -96,15 +96,29 @@
     <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxTCPClient.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxTCPManager.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxTCPServer.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxUDPManager.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\memheap.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofCommandLineArgs.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofLine.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofPlane.cpp" />
     <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofShape.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyApp.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyMath.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyModule.cpp" />
     <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyNet.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyPacket.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyRef.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyRender.cpp" />
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoySocket.cpp" />
     <ClCompile Include="src\TApp.cpp" />
     <ClCompile Include="src\TState.cpp" />
     <ClCompile Include="src\TGameMeta.cpp" />
     <ClCompile Include="src\TStarWorld.cpp" />
     <ClCompile Include="src\TComponent.cpp" />
     <ClCompile Include="src\TPhysics.cpp" />
-    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyApp.cpp" />
     <ClCompile Include="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.cpp" />
     <ClCompile Include="..\..\..\addons\ofxXmlSettings\libs\tinyxml.cpp" />
     <ClCompile Include="..\..\..\addons\ofxXmlSettings\libs\tinyxmlerror.cpp" />
@@ -118,7 +132,38 @@
     <ClCompile Include="src\TWorld.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxNetwork.h" />
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxNetworkUtils.h" />
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxTCPClient.h" />
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxTCPManager.h" />
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxTCPServer.h" />
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxUDPManager.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\array.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\bufferarray.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\chartype.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\configure.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\heaparray.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\memheap.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofCommandLineArgs.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofLine.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofPlane.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofShape.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofxSoylent.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyApp.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyEnum.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyMath.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyModule.h" />
     <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyNet.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyPacket.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyPair.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyRef.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyRender.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoySocket.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyState.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyState.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyTime.h" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\string.hpp" />
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\types.hpp" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUI.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUI2DPad.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUIBaseDraws.h" />
@@ -160,19 +205,6 @@
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUIWaveform.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUIWidget.h" />
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUIWidgetWithLabel.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\array.hpp" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\bufferarray.hpp" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\chartype.hpp" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\configure.hpp" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofShape.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofxSoylent.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyApp.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyEnum.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyPair.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyRef.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyTime.h" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\string.hpp" />
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\types.hpp" />
     <ClInclude Include="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.h" />
     <ClInclude Include="..\..\..\addons\ofxXmlSettings\libs\tinyxml.h" />
     <ClInclude Include="src\main.h" />

@@ -29,9 +29,9 @@ void TComs::DestroyComponents(const TActorRef& Ref)
 }
 
 
-void TComTransform::Render(const TRenderSettings& RenderSettings,const TTransform& ParentTransform,const TMaterial& Material)
+void TComTransform::Render(const TRenderSettings& RenderSettings,const TTransform2& ParentTransform,const TMaterial& Material)
 {
-	TTransform WorldTransform = GetTransform();
+	auto WorldTransform = GetTransform();
 	ParentTransform.Transform( WorldTransform );
 
 	//	render a box at the center...
@@ -81,7 +81,7 @@ void TComCollision::Render(const TRenderSettings& RenderSettings,const TCollisio
 
 
 
-ofShapeCircle2 TComGravity::GetWorldGravityShape(const TTransform& WorldTransform)
+ofShapeCircle2 TComGravity::GetWorldGravityShape(const TTransform2& WorldTransform)
 {
 	//	if our shape isn't valid, then see if we can generate it from the collision shape
 	if ( !mLocalShape.IsValid() )
@@ -99,7 +99,7 @@ ofShapeCircle2 TComGravity::GetWorldGravityShape(const TTransform& WorldTransfor
 	return Circle;
 }
 
-void TComGravity::Render(const TRenderSettings& RenderSettings,const TTransform& WorldTransform,const TMaterial& Material)
+void TComGravity::Render(const TRenderSettings& RenderSettings,const TTransform2& WorldTransform,const TMaterial& Material)
 {
 	//	render gravity field
 	ofShapeCircle2 GravityCircle = GetWorldGravityShape( WorldTransform );

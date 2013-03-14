@@ -4,12 +4,6 @@
 #include "TComponent.h"
 
 
-namespace TRender
-{
-	extern ofTrueTypeFont	Font;
-	bool					InitFont();
-};
-
 namespace TRenderMode
 {
 	enum Type
@@ -34,14 +28,6 @@ public:
 	TComs::Type			mComponent;	//	render a component rather than the actor
 };
 
-
-//	push/pop style for immediate rendering
-class TRenderSceneScope
-{
-public:
-	TRenderSceneScope(const char* SceneName);
-	~TRenderSceneScope();
-};
 
 
 
@@ -79,14 +65,5 @@ public:
 	bool		mOutline;
 	ofColour	mColour;
 	float		mZ;
-};
-
-
-//	renderable object data (link assets and node)
-class TRenderNode
-{
-public:
-	vec3f			mPosition;
-	TMaterial		mMaterial;
 };
 

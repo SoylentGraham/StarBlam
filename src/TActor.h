@@ -67,11 +67,11 @@ namespace TActors
 //---------------------------------
 //	init stuff
 //---------------------------------
-class TActorMeta : public TTransform
+class TActorMeta : public TTransform2
 {
 public:
-	TTransform&			GetTransform()			{	return *this;	}
-	const TTransform&	GetTransform() const	{	return *this;	}
+	TTransform2&		GetTransform()			{	return *this;	}
+	const TTransform2&	GetTransform() const	{	return *this;	}
 
 public:
 	ofColour			mColour;
@@ -113,8 +113,8 @@ public:
 	void					SetLocalPosition(const vec2f& Pos);
 	TCollisionShape			GetWorldCollisionShape() const;
 	TCollisionShape			GetLocalCollisionShape() const;
-	TTransform				GetParentWorldTransform() const;
-	TTransform				GetWorldTransform() const;
+	TTransform2				GetParentWorldTransform() const;
+	TTransform2				GetWorldTransform() const;
 	void					SetWorldRotation(float AngleDeg);
 
 	ofShapeCircle2			GetTreeLocalCollisionShape(TWorld& World) const;		//	accumulate the collision shape of all children in the tree, localised to this

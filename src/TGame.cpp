@@ -316,7 +316,7 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 		TGamePacket_FireRocket Packet;
 		Packet.mFiringLine = DragLine;
 		Packet.mPlayerRef = Drag.mPlayer;
-		mGamePackets.PushPacket( Packet );
+		PushPacket( Packet );
 	}
 
 	if ( Sentry.GetType() == TActors::SentryMissile )
@@ -335,7 +335,7 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 		TGamePacket_FireMissile Packet;
 		Packet.mFiringPath = Path;
 		Packet.mPlayerRef = Drag.mPlayer;
-		mGamePackets.PushPacket( Packet );
+		PushPacket( Packet );
 	}
 	
 	
@@ -501,26 +501,33 @@ vec2f TGame::WorldToScreen(const vec3f& World3)
 
 void TGame::UpdateGamePackets()
 {
-	while ( true )
+	while ( !mGamePackets.IsEmpty() )
 	{
-		TGamePacket* pPacket = mGamePackets.PopPacket();
-		if ( !pPacket ) 
+		SoyPacketContainer Packet;
+		if ( !mGamePackets.PopPacket( Packet ) )
 			break;
 
-		if ( !OnPacket( *pPacket ) )
+		if ( !OnPacket( Packet ) )
 		{
 			//	unhandled packet
 		}
-
-		delete pPacket;
 	}
 }
 
-bool TGame::OnPacket(TGamePacket& Packet)
+bool TGame::OnPacket(const SoyPacketContainer& Packet)
 {
-	#define case_OnPacket(PACKETTYPE)	case PACKETTYPE::TYPE:	OnPacket( static_cast<PACKETTYPE&>( Packet ) );	return true;
+	auto PacketType = static_cast<TGamePackets::Type>( Packet.mMeta.mType );
+	#define case_OnPacket(PACKETTYPE)			\
+		case PACKETTYPE::TYPE:					\
+		{										\
+			PACKETTYPE PacketObject;			\
+			if ( !Packet.GetPacketAs( PacketObject ) )	\
+				return false;					\
+			OnPacket( PacketObject );			\
+			return true;						\
+		}
 
-	switch ( Packet.GetType() )
+	switch ( PacketType )
 	{
 		case_OnPacket( TGamePacket_FireRocket );
 		case_OnPacket( TGamePacket_FireMissile );
@@ -534,7 +541,7 @@ bool TGame::OnPacket(TGamePacket& Packet)
 	return false;
 }
 
-void TGame::OnPacket(TGamePacket_FireRocket& Packet)
+void TGame::OnPacket(const TGamePacket_FireRocket& Packet)
 {
 	//	create rocket actor
 	TActorMeta Meta;
@@ -542,7 +549,7 @@ void TGame::OnPacket(TGamePacket_FireRocket& Packet)
 	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Meta );
 }
 
-void TGame::OnPacket(TGamePacket_FireMissile& Packet)
+void TGame::OnPacket(const TGamePacket_FireMissile& Packet)
 {
 	//	create rocket actor
 	TActorMeta Meta;
@@ -551,7 +558,7 @@ void TGame::OnPacket(TGamePacket_FireMissile& Packet)
 }
 
 
-void TGame::OnPacket(TGamePacket_CollisionProjectileAndSentry& Packet)
+void TGame::OnPacket(const TGamePacket_CollisionProjectileAndSentry& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
@@ -561,7 +568,7 @@ void TGame::OnPacket(TGamePacket_CollisionProjectileAndSentry& Packet)
 	mWorld.DestroyActor( Packet.mActorSentry );
 }
 
-void TGame::OnPacket(TGamePacket_CollisionProjectileAndPlayer& Packet)
+void TGame::OnPacket(const TGamePacket_CollisionProjectileAndPlayer& Packet)
 {
 	//	actor A is the rocket
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );
@@ -575,7 +582,7 @@ void TGame::OnPacket(TGamePacket_CollisionProjectileAndPlayer& Packet)
 	}
 }
 
-void TGame::OnPacket(TGamePacket_CollisionProjectileAndAsteroidChunk& Packet)
+void TGame::OnPacket(const TGamePacket_CollisionProjectileAndAsteroidChunk& Packet)
 {
 	//	create explossion
 	mWorld.CreateActor<TActorExplosion>( Packet.mIntersection.mCollisionPointB );

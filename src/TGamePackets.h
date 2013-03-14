@@ -36,12 +36,6 @@ public:
 
 
 
-class TGamePacketContainer : public SoyPacketContainer<TGamePackets::Type PACKETTYPE>
-{
-public:
-};
-
-
 
 class TGamePacket_FireRocket : public TGamePacketDerivitive<TGamePackets::FireRocket>
 {
@@ -54,9 +48,12 @@ public:
 class TGamePacket_FireMissile : public TGamePacketDerivitive<TGamePackets::FireMissile>
 {
 public:
-	ofShapePath2	mFiringPath;
 	TRef			mPlayerRef;
+	ofShapePath2	mFiringPath;
 };
+
+template<> bool Soy::ToRawData(Array<char>& Data,const TGamePacket_FireMissile& Packet);
+template<> bool Soy::FromRawData(TGamePacket_FireMissile& Packet,const Array<char>& Data);
 
 
 class TGamePacket_CollisionProjectileAndPlayer : public TGamePacketDerivitive<TGamePackets::Collision_ProjectileAndPlayer>
@@ -86,16 +83,5 @@ public:
 	TAsteroidChunkImpactMeta	mChunkImpactMeta;
 };
 
-
-
-
-
-//	clone this packet and push it
-template<class PACKET>
-void TGamePacketContainer::PushPacket(const PACKET& Packet)
-{
-	TGamePacket* pPacketCopy = new PACKET( Packet );
-	PushPacket( pPacketCopy );
-}
 
 

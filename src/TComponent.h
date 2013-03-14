@@ -137,23 +137,23 @@ protected:
 
 
 
-class TComTransform : public TCom<TComs::Transform>, public TTransform
+class TComTransform : public TCom<TComs::Transform>, public TTransform2
 {
 public:
 	TComTransform(const TComMeta& ComMeta) :
 		TCom				( ComMeta )
 	{
 	}
-	TComTransform(const TComMeta& ComMeta,const TTransform& Meta) :
+	TComTransform(const TComMeta& ComMeta,const TTransform2& Meta) :
 		TCom		( ComMeta ),
-		TTransform	( Meta )
+		TTransform2	( Meta )
 	{
 	}
 
-	TTransform&			GetTransform()			{	return *this;	}
-	const TTransform&	GetTransform() const	{	return *this;	}
+	TTransform2&		GetTransform()			{	return *this;	}
+	const TTransform2&	GetTransform() const	{	return *this;	}
 
-	void				Render(const TRenderSettings& RenderSettings,const TTransform& ParentTransform,const TMaterial& Material);
+	void				Render(const TRenderSettings& RenderSettings,const TTransform2& ParentTransform,const TMaterial& Material);
 };
 
 
@@ -224,9 +224,9 @@ public:
 	{
 	}
 
-	void			Render(const TRenderSettings& RenderSettings,const TTransform& WorldTransform,const TMaterial& Material);
+	void			Render(const TRenderSettings& RenderSettings,const TTransform2& WorldTransform,const TMaterial& Material);
 	void			SetLocalGravityShape(const ofShapeCircle2& BoundsShape);
-	ofShapeCircle2	GetWorldGravityShape(const TTransform& WorldTransform);
+	ofShapeCircle2	GetWorldGravityShape(const TTransform2& WorldTransform);
 };
 
 

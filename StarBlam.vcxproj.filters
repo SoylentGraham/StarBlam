@@ -31,14 +31,8 @@
     <ClCompile Include="src\TGamePackets.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofShape.cpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClCompile>
     <ClCompile Include="src\TPhysics.cpp">
       <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyApp.cpp">
-      <Filter>addons\ofxSoylent</Filter>
     </ClCompile>
     <ClCompile Include="src\TComponent.cpp">
       <Filter>src</Filter>
@@ -55,11 +49,59 @@
     <ClCompile Include="src\TState.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyNet.cpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClCompile>
     <ClCompile Include="src\TStateFrontEnd.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxTCPClient.cpp">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxTCPManager.cpp">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxTCPServer.cpp">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxNetwork\src\ofxUDPManager.cpp">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyPacket.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyRef.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyRender.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoySocket.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\memheap.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofCommandLineArgs.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofLine.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofPlane.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\ofShape.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyApp.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyMath.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyModule.cpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\addons\ofxSoylent\src\SoyNet.cpp">
+      <Filter>addons\ofxSoylent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -84,6 +126,9 @@
     <Filter Include="addons\ofxUI">
       <UniqueIdentifier>{28b5bfb8-227e-4bec-a153-5ef30d3195b9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="addons\ofxNetwork">
+      <UniqueIdentifier>{787a60d4-1c46-4a34-83bf-ea343b7a6127}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.h">
@@ -95,23 +140,8 @@
     <ClInclude Include="src\main.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofxSoylent.h">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyEnum.h">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyTime.h">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyPair.h">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
     <ClInclude Include="src\TWorld.h">
       <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyRef.h">
-      <Filter>addons\ofxSoylent</Filter>
     </ClInclude>
     <ClInclude Include="src\TGame.h">
       <Filter>src</Filter>
@@ -122,32 +152,8 @@
     <ClInclude Include="src\TActor.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofShape.h">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyApp.h">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
     <ClInclude Include="src\TGamePackets.h">
       <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\array.hpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\bufferarray.hpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\chartype.hpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\configure.hpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\string.hpp">
-      <Filter>addons\ofxSoylent</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\addons\ofxSoylent\src\types.hpp">
-      <Filter>addons\ofxSoylent</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxUI\src\ofxUI.h">
       <Filter>addons\ofxUI</Filter>
@@ -290,11 +296,104 @@
     <ClInclude Include="src\TState.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\TStateFrontEnd.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxNetwork.h">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxNetworkUtils.h">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxTCPClient.h">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxTCPManager.h">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxTCPServer.h">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxNetwork\src\ofxUDPManager.h">
+      <Filter>addons\ofxNetwork</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyNet.h">
       <Filter>addons\ofxSoylent</Filter>
     </ClInclude>
-    <ClInclude Include="src\TStateFrontEnd.h">
-      <Filter>src</Filter>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyPacket.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyPair.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyRef.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyRender.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoySocket.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyState.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyState.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyTime.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\string.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\types.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\array.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\bufferarray.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\chartype.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\configure.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\heaparray.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\memheap.hpp">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofCommandLineArgs.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofLine.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofPlane.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofShape.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\ofxSoylent.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyApp.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyEnum.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyMath.h">
+      <Filter>addons\ofxSoylent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\addons\ofxSoylent\src\SoyModule.h">
+      <Filter>addons\ofxSoylent</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
