@@ -14,16 +14,25 @@
 class TGame;
 
 
-namespace TGameState
+namespace TGameStates
 {
 	enum Type		
 	{
-		PlayerOneTurn,
-		PlayerOneTurnEnd,	//	waiting for everything to finish
-		PlayerTwoTurn,
-		PlayerTwoTurnEnd,
+		Invalid,
+		Init,
+
+		PlayerTurn,
+		PlayerTurnEnd,	//	waiting for everything to finish
+		
+		ChangingState,		//	waiting for a packet to change turn
+
+		Exit_Error,
 	};
+	
+	BufferString<100>	ToString(TGameStates::Type Enum);
+	void				GetArray(ArrayBridge<TGameStates::Type>& Array);
 };
+SOY_DECLARE_ENUM( TGameStates );
 
 
 class TGameCamera
@@ -66,35 +75,28 @@ public:
 	int						mHealth;
 };
 
-namespace TPlayerDragState
-{
-	enum Type
-	{
-		Init,
-		Active,
-		Finished,
-	};
-};
 
 class TPlayerDrag
 {
 public:
 	TPlayerDrag() :
-		mState			( TPlayerDragState::Init ),
+		mActive			( true ),
 		mActorDrag		( NULL ),
 		mActorDragPath	( NULL )
 	{
 	}
 
-	bool			IsFinished() const				{	return mState == TPlayerDragState::Finished;	}
-	void			SetFinished()					{	mState = TPlayerDragState::Finished;	}
+	bool			IsFinished() const				{	return !mActive;	}
+	void			SetFinished()					{	mActive = false;	}
 	ofLine2			GetWorldDragLine(TWorld& World,TGame& Game) const;
 	vec2f			GetWorldDragTo(TGame& Game,float z) const;
 	vec2f			GetScreenDragTo() const					{	return mScreenDragTo;	}
-	void			SetScreenDragTo(const vec2f& ScreenPos)	{	mScreenDragTo = ScreenPos;	}
+	bool			SetScreenDragTo(const vec2f& ScreenPos);	//	returns if changed
+
+	inline bool		operator==(const TPlayerDrag& That) const	{	return this == &That;	}
 
 public:
-	TPlayerDragState::Type	mState;			//	if true the drag hasn't been relesaed yet
+	bool					mActive;		//	if true the drag hasn't been relesaed yet
 	TActorRef				mSentry;		//	drag from this sentry
 	TRef					mPlayer;		//	player which did the drag
 	//	todo: merge!
@@ -105,6 +107,57 @@ private:
 	vec3f					mScreenDragTo;	//	where the player is dragging to
 };
 
+
+class TGameTurnEnder
+{
+public:
+	virtual ~TGameTurnEnder()	{}
+
+	virtual bool	Update(float TimeStep,TGame& Game)=0;	//	return if still waiting
+};
+
+
+class TGameTurnEnder_ActorDeath : public TGameTurnEnder
+{
+public:
+	TGameTurnEnder_ActorDeath(TActorRef Actor) :
+		mActor	( Actor )
+	{
+	}
+
+	virtual bool	Update(float TimeStep,TGame& Game);
+
+public:
+	TActorRef	mActor;
+};
+
+
+class TGameState
+{
+public:
+	TGameState() :
+		mState	( TGameStates::Invalid )
+	{
+	}
+	TGameState(TGameStates::Type State,SoyRef Player=SoyRef()) :
+		mState	( State ),
+		mPlayer	( Player )
+	{
+	}
+
+	bool				IsValid() const	{	return mState != TGameStates::Invalid;	}
+
+public:
+	TGameStates::Type	mState;
+	SoyRef				mPlayer;
+};
+
+template<class STRING>
+inline STRING& operator<<(STRING& str,const TGameState& State)
+{
+	str << SoyEnum::ToString(State.mState) << " (player " << State.mPlayer << ")";
+	return str;
+}
 
 //----------------------------------------------
 //	disposable game container with logic
@@ -133,7 +186,7 @@ public:
 	//	utils
 	TPlayer*		GetPlayer(TActorRef ActorRef);		//	find the owner of this actor
 	TPlayer*		GetPlayer(TRef PlayerRef)			{	return mPlayers.Find( PlayerRef );	}
-	TRef			GetCurrentPlayer() const;			//	current player (though may not have any control)
+	TRef			GetCurrentPlayer() const			{	return mGameState.mPlayer;	}	//	current player (though may not have any control)
 	TRef			GetCurrentControlPlayer() const;	//	current player with control (invalid if cannot control)
 
 protected:
@@ -146,7 +199,11 @@ protected:
 	void			OnDragStarted(TPlayerDrag& Drag);
 	void			OnDragEnded(TPlayerDrag& Drag);
 	void			UpdateDrag(TPlayerDrag& Drag);
-	
+	void			UpdateState(float TimeStep);
+	void			SetNextPlayerTurn();				//	go from player1 turn to player2
+	void			OnTurnTimeout();					//	force end of a turn when time runs out
+	void			ChangeGameState(const TGameState& NewGameState,TActorRef WaitForActorDeath);
+	void			ChangeGameState(const TGameState& NewGameState,TActor* pWaitForActorDeath=NULL);
 
 	//	real
 	void			UpdateGamePackets();
@@ -156,18 +213,29 @@ protected:
 	void			OnPacket(const TGamePacket_CollisionProjectileAndPlayer& Packet);
 	void			OnPacket(const TGamePacket_CollisionProjectileAndSentry& Packet);
 	void			OnPacket(const TGamePacket_CollisionProjectileAndAsteroidChunk& Packet);
+	void			OnPacket(const TGamePacket_ChangeTurn& Packet);
+	void			OnPacket(const TGamePacket_StartDrag& Packet);
+	void			OnPacket(const TGamePacket_EndDrag& Packet);
+	void			OnPacket(const TGamePacket_UpdateDrag& Packet);
 
 
 
 public:
+	TGameMeta				mGameMeta;
 	SoyPacketManager		mGamePackets;
+
 	ofRectangle				mOrthoViewport;
 	TGameCamera				mGameCamera;
 	ofCamera				mCamera;
+
 	TStarWorld				mWorld;
 	Array<TPlayer>			mPlayers;
-	TGameState::Type		mGameState;
+
 	Array<TPlayerDrag>		mPendingDrags;
-	TGameMeta				mGameMeta;
+
+	SoyRef					mActivePlayer;
+	TGameState				mGameState;
+	ofPtr<TGameTurnEnder>	mTurnEnder;
+	float					mTurnTime;			//	turn countdown
 };
 

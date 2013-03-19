@@ -14,8 +14,16 @@ namespace TGamePackets
 		Collision_ProjectileAndPlayer,
 		Collision_ProjectileAndSentry,
 		Collision_ProjectileAndAsteroidChunk,
+		ChangeTurn,
+		StartDrag,
+		UpdateDrag,
+		EndDrag,
 	};
+
+	BufferString<100>	ToString(TGamePackets::Type Enum);
+	void				GetArray(ArrayBridge<TGamePackets::Type>& Array);
 };
+SOY_DECLARE_ENUM( TGamePackets );
 
 
 class TGamePacket : public SoyPacket<TGamePackets::Type>
@@ -84,4 +92,31 @@ public:
 };
 
 
+class TGamePacket_ChangeTurn :  public TGamePacketDerivitive<TGamePackets::ChangeTurn>
+{
+public:
+	TRef			mNextPlayer;
+};
+
+class TGamePacket_StartDrag :  public TGamePacketDerivitive<TGamePackets::StartDrag>
+{
+public:
+	TRef			mPlayer;
+	TActorRef		mSentry;
+	vec2f			mScreenPos;
+};
+
+class TGamePacket_EndDrag :  public TGamePacketDerivitive<TGamePackets::EndDrag>
+{
+public:
+	//	params for verification
+	TRef			mCurrentDragPlayer;
+};
+
+class TGamePacket_UpdateDrag :  public TGamePacketDerivitive<TGamePackets::UpdateDrag>
+{
+public:
+	TRef			mCurrentDragPlayer;
+	vec2f			mScreenPos;
+};
 

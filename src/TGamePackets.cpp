@@ -1,6 +1,35 @@
 #include "TGamePackets.h"
 
 
+BufferString<100> TGamePackets::ToString(TGamePackets::Type Enum)
+{
+	switch ( Enum )
+	{
+		case FireRocket:		return "FireRocket";
+		case FireMissile:		return "FireMissile";
+		case Collision_ProjectileAndPlayer:		return "Collision_ProjectileAndPlayer";
+		case Collision_ProjectileAndSentry:		return "Collision_ProjectileAndSentry";
+		case Collision_ProjectileAndAsteroidChunk:		return "Collision_ProjectileAndAsteroidChunk";
+		case ChangeTurn:		return "ChangeTurn";
+		case StartDrag:			return "StartDrag";
+		case UpdateDrag:		return "UpdateDrag";
+		case EndDrag:			return "EndDrag";
+	};
+}
+
+void TGamePackets::GetArray(ArrayBridge<TGamePackets::Type>& Array)
+{
+	Array.PushBack( FireRocket );
+	Array.PushBack( FireMissile );
+	Array.PushBack( Collision_ProjectileAndPlayer );
+	Array.PushBack( Collision_ProjectileAndSentry );
+	Array.PushBack( Collision_ProjectileAndAsteroidChunk );
+	Array.PushBack( ChangeTurn );
+	Array.PushBack( StartDrag );
+	Array.PushBack( UpdateDrag );
+	Array.PushBack( EndDrag );
+}
+
 
 
 template<>

@@ -1,18 +1,67 @@
 #include "TGame.h"
 
 
+#define TURN_TIME_SECS		10.f
+
+
+
+BufferString<100> TGameStates::ToString(TGameStates::Type Enum)
+{
+	switch ( Enum )
+	{
+		case Invalid:			return "Invalid";
+		case Init:				return "Init";
+		case PlayerTurn:		return "PlayerTurn";
+		case PlayerTurnEnd:		return "PlayerTurnEnd";
+		case ChangingState:		return "ChangingState";
+		case Exit_Error:		return "Exit_Error";
+	};
+
+	assert(false);
+	return "???";
+}
+
+void TGameStates::GetArray(ArrayBridge<TGameStates::Type>& Array)
+{
+	Array.PushBack( Invalid );
+	Array.PushBack( Init );
+	Array.PushBack( PlayerTurn );
+	Array.PushBack( PlayerTurnEnd );
+	Array.PushBack( ChangingState );
+	Array.PushBack( Exit_Error );
+}
+
 
 vec2f TPlayerDrag::GetWorldDragTo(TGame& Game,float z) const
 {
 	return Game.ScreenToWorld( mScreenDragTo, z );
 }
 
+bool TPlayerDrag::SetScreenDragTo(const vec2f& ScreenPos)	
+{
+	if ( mScreenDragTo == ScreenPos )
+		return false;
 
+	mScreenDragTo = ScreenPos;	
+	return true;
+}
+
+
+bool TGameTurnEnder_ActorDeath::Update(float TimeStep,TGame& Game)
+{
+	//	is actor still alive?
+	auto* pActor = Game.mWorld.GetActor( mActor );
+	if ( pActor )
+		return true;
+	else
+		return false;
+}
 
 
 TGame::TGame(const TGameMeta& GameMeta) :
-	mGameState	( TGameState::PlayerOneTurn ),
-	mGameMeta	( GameMeta )
+	mGameState		( TGameStates::Init ),
+	mGameMeta		( GameMeta ),
+	mTurnTime		( 0.f )
 {
 	mPlayers.PushBack( GameMeta.mPlayerA );
 	mPlayers.PushBack( GameMeta.mPlayerB );
@@ -71,6 +120,13 @@ bool TGame::Init()
 	float Distance = mCamera.getImagePlaneDistance( ofGetCurrentViewport() );
 	mCamera.setPosition( Distance * mCamera.getZAxis() );
 
+	//	init game state
+	{
+		TGamePacket_ChangeTurn SetState;
+		SetState.mNextPlayer = mPlayers[0].mRef;
+		OnPacket( SetState );
+	}
+
 	return true;
 }
 
@@ -85,9 +141,10 @@ void TGame::Update(float TimeStep)
 	//	do collisoin before packets then it all happens in the same frame :)
 	mWorld.UpdateCollisions( *this );
 
+	UpdateState( TimeStep );
+
 	//	process game packets (real logic from simulation etc)
 	UpdateGamePackets();
-
 }
 
 void TGame::Render(float TimeStep)
@@ -141,7 +198,11 @@ void TGame::RenderHud(float TimeStep)
 
 		TString String;
 		String << Player.mHealth << "%";
-		std::string StdString( static_cast<const char*>( String ) );
+		
+		if ( Player == GetCurrentPlayer() )
+			String << "\nYOUR TURN";
+		if ( Player == GetCurrentControlPlayer() )
+			String << "*";
 
 		//	player -> screen
 		vec3f WorldPos = Player.mDeathStar->GetWorldPosition3();
@@ -149,10 +210,43 @@ void TGame::RenderHud(float TimeStep)
 		vec2f ScreenPos = WorldPos;
 
 		//	center text
+		std::string StdString( static_cast<const char*>( String ) );
 		vec2f TextSize( TRender::Font.stringWidth(StdString), TRender::Font.stringHeight(StdString) );
 		ScreenPos.x -= TextSize.x / 2.f;
 		ScreenPos.y += TextSize.y / 2.f;
 
+		TRender::Font.drawString( StdString, ScreenPos.x, ScreenPos.y );
+	}
+
+	//	render game state
+	{
+		TString GameStateString;
+		TString PlayerName;
+		auto* pActivePlayer = GetPlayer( GetCurrentPlayer() );
+		if ( pActivePlayer )
+			PlayerName << pActivePlayer->mName;
+		else
+			PlayerName << "???";
+
+		switch ( mGameState.mState )
+		{
+		case TGameStates::PlayerTurn:
+			GameStateString << PlayerName << ": " << mTurnTime << "s";
+			break;
+		case TGameStates::PlayerTurnEnd:
+			GameStateString << PlayerName << " turn ending " << mTurnTime;
+			break;
+		case TGameStates::ChangingState:
+			GameStateString << "changing state..";
+			break;
+
+		default:
+			GameStateString << "???";
+			break;
+		}
+
+		static vec2f ScreenPos( -300, -300 );
+		std::string StdString( static_cast<const char*>( GameStateString ) );
 		TRender::Font.drawString( StdString, ScreenPos.x, ScreenPos.y );
 	}
 }
@@ -178,29 +272,83 @@ void TGame::UpdateInput(SoyInput& Input)
 		if ( !mPendingDrags.IsEmpty() )
 		{
 			pCurrentDrag = &mPendingDrags.GetBack();
-			//	if current drag is finished, ignore it
-			if ( pCurrentDrag->IsFinished() )
-				pCurrentDrag = NULL;
 		}
 
 		//	if gesture is a release, end the current drag if there is one...
-		if ( Gesture.IsUp() && pCurrentDrag )
+		if ( Gesture.IsUp() && pCurrentDrag && !pCurrentDrag->IsFinished() )
 		{
-			pCurrentDrag->SetFinished();
+			TGamePacket_EndDrag Packet;
+			Packet.mCurrentDragPlayer = pCurrentDrag->mPlayer;
+			PushPacket( Packet );				
 		}
-		else if ( !pCurrentDrag && Gesture.IsDown() )
+		else if ( !pCurrentDrag && Gesture.IsDown() )//Gesture.IsFirstDown() )
 		{
 			//	new drag
 			TryNewDrag( Gesture );
 		}
-		else if ( pCurrentDrag && Gesture.IsDown() )
+		else if ( Gesture.IsDown() && pCurrentDrag && !pCurrentDrag->IsFinished() )
 		{
 			//	update end point of current drag
-			pCurrentDrag->SetScreenDragTo( Gesture.mPath.GetBack() );
+			//	gr: reduce packets by checking for change first
+			//	local reflect
+			if ( pCurrentDrag->SetScreenDragTo( Gesture.mPath.GetBack() ) )
+			{
+				TGamePacket_UpdateDrag Packet;
+				Packet.mScreenPos = pCurrentDrag->GetScreenDragTo();
+				Packet.mCurrentDragPlayer = pCurrentDrag->mPlayer;
+				PushPacket( Packet );
+			}
+
 		}
 		
 	}
 	Input.PopUnlock();
+}
+
+void TGame::OnPacket(const TGamePacket_StartDrag& Packet)
+{
+	//	create a drag from that sentry
+	TPlayerDrag* pCurrentDrag = NULL;
+	pCurrentDrag = &mPendingDrags.PushBack();
+	pCurrentDrag->mPlayer = Packet.mPlayer;
+	pCurrentDrag->mSentry = Packet.mSentry;
+	pCurrentDrag->SetScreenDragTo( Packet.mScreenPos );
+	OnDragStarted( *pCurrentDrag );
+}
+
+void TGame::OnPacket(const TGamePacket_EndDrag& Packet)
+{
+	//	shouldn't get this packet without a drag...
+	assert( !mPendingDrags.IsEmpty() );
+	if ( mPendingDrags.IsEmpty() )
+		return;
+
+	TPlayerDrag* pCurrentDrag = &mPendingDrags.GetBack();
+
+	//	check for mis-match!
+	assert( pCurrentDrag->mPlayer == Packet.mCurrentDragPlayer );
+
+	OnDragEnded( *pCurrentDrag );
+	if ( !mPendingDrags.Remove( *pCurrentDrag ) )
+	{
+		assert( false );
+	}
+}
+
+
+void TGame::OnPacket(const TGamePacket_UpdateDrag& Packet)
+{
+	//	shouldn't get this packet without a drag...
+	//assert( !mPendingDrags.IsEmpty() );
+	if ( mPendingDrags.IsEmpty() )
+		return;
+
+	TPlayerDrag* pCurrentDrag = &mPendingDrags.GetBack();
+
+	//	check for mis-match!
+	assert( pCurrentDrag->mPlayer == Packet.mCurrentDragPlayer );
+
+	pCurrentDrag->SetScreenDragTo( Packet.mScreenPos );
 }
 
 
@@ -216,7 +364,7 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 	//	see where this screen shape hits a sentry
 	ofShapeCircle2 FingerShape( Gesture.mPath[0], FINGER_SCREEN_SIZE );
 
-	int NearestSentry = -1;
+	TActorRef NearestSentry;
 	float NearestSentryDistanceSq = 0.f;
 	
 	Array<TActorSentry*> Sentrys;
@@ -237,25 +385,26 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 			continue;
 
 		//	is better result?
-		if ( NearestSentry == -1 || Intersection.mDistanceSq < NearestSentryDistanceSq )
+		if ( !NearestSentry.IsValid() || Intersection.mDistanceSq < NearestSentryDistanceSq )
 		{
-			NearestSentry = i;
+			NearestSentry = Sentry.GetRef();
 			NearestSentryDistanceSq = Intersection.mDistanceSq;
 		}
 	}		
 
 	//	none near the finger!
-	if ( NearestSentry == -1 )
+	if ( !NearestSentry.IsValid() )
 		return false;
+	
+	TString Debug;
+	Debug << "New drag while in state " << mGameState << "\n";
+	ofLogNotice( static_cast<const char*>(Debug) );
 
-	auto& Sentry = *Sentrys[NearestSentry];
-
-	//	create a drag from that sentry
-	TPlayerDrag* pCurrentDrag = NULL;
-	pCurrentDrag = &mPendingDrags.PushBack();
-	pCurrentDrag->mPlayer = CurrentPlayer;
-	pCurrentDrag->mSentry = Sentry.GetRef();
-	pCurrentDrag->SetScreenDragTo( Gesture.mPath.GetBack() );
+	TGamePacket_StartDrag Packet;
+	Packet.mPlayer = CurrentPlayer;
+	Packet.mSentry = NearestSentry;
+	Packet.mScreenPos = Gesture.mPath.GetBack();
+	PushPacket( Packet );
 	return true;
 }
 
@@ -287,13 +436,11 @@ void TGame::OnDragStarted(TPlayerDrag& Drag)
 			Drag.mActorDragPath = mWorld.CreateActor<TActorDragPath>();
 		break;
 	}
-
-	Drag.mState = TPlayerDragState::Active;
 }
 
 void TGame::OnDragEnded(TPlayerDrag& Drag)
 {
-	Drag.mState = TPlayerDragState::Finished;	//	probably already set
+	Drag.mActive = false;
 
 
 	auto* pSentry = mWorld.GetActor<TActorSentry>( Drag.mSentry );
@@ -402,16 +549,10 @@ void TGame::UpdateDrags()
 	{
 		auto& Drag = mPendingDrags[i];
 
-		//	handle finsihed ones
-		if ( Drag.mState == TPlayerDragState::Finished )
-		{
-			OnDragEnded( Drag );
-			mPendingDrags.RemoveBlock( i,1 );
+		//	dont update finished ones (probably shouldn't be in this list any more)
+		assert( !Drag.IsFinished() );
+		if ( Drag.IsFinished() )
 			continue;
-		}
-
-		if ( Drag.mState == TPlayerDragState::Init )
-			OnDragStarted( Drag );
 
 		UpdateDrag( Drag );
 	}
@@ -501,6 +642,9 @@ vec2f TGame::WorldToScreen(const vec3f& World3)
 
 void TGame::UpdateGamePackets()
 {
+	if ( !mGamePackets.IsEmpty() )
+		ofLogNotice("------------\n");
+
 	while ( !mGamePackets.IsEmpty() )
 	{
 		SoyPacketContainer Packet;
@@ -527,6 +671,10 @@ bool TGame::OnPacket(const SoyPacketContainer& Packet)
 			return true;						\
 		}
 
+	TString Debug;
+	Debug << "OnPacket( " << SoyEnum::ToString( PacketType ) << ")\n";
+	ofLogNotice( static_cast<const char*>( Debug ) );
+
 	switch ( PacketType )
 	{
 		case_OnPacket( TGamePacket_FireRocket );
@@ -534,6 +682,10 @@ bool TGame::OnPacket(const SoyPacketContainer& Packet)
 		case_OnPacket( TGamePacket_CollisionProjectileAndPlayer );
 		case_OnPacket( TGamePacket_CollisionProjectileAndSentry );
 		case_OnPacket( TGamePacket_CollisionProjectileAndAsteroidChunk );
+		case_OnPacket( TGamePacket_ChangeTurn );
+		case_OnPacket( TGamePacket_StartDrag );
+		case_OnPacket( TGamePacket_EndDrag );
+		case_OnPacket( TGamePacket_UpdateDrag );
 	}
 
 	#undef case_OnPacket
@@ -541,12 +693,36 @@ bool TGame::OnPacket(const SoyPacketContainer& Packet)
 	return false;
 }
 
+void TGame::ChangeGameState(const TGameState& NewGameState,TActor* pWaitForActorDeath)
+{
+	TActorRef WaitForActorDeath = pWaitForActorDeath ? pWaitForActorDeath->GetRef() : TActorRef();
+	ChangeGameState( NewGameState, WaitForActorDeath );
+}
+
+void TGame::ChangeGameState(const TGameState& NewGameState,TActorRef WaitForActorDeath)
+{
+	if ( WaitForActorDeath.IsValid() )
+		mTurnEnder = ofPtr<TGameTurnEnder>( new TGameTurnEnder_ActorDeath( WaitForActorDeath ) );
+
+	//	set new state
+	mGameState = NewGameState;
+
+	//	reset for new turn
+	if ( mGameState.mState == TGameStates::PlayerTurn )
+	{
+		mTurnTime = TURN_TIME_SECS;
+	}
+}
+
 void TGame::OnPacket(const TGamePacket_FireRocket& Packet)
 {
 	//	create rocket actor
 	TActorMeta Meta;
 	Meta.mOwnerPlayer = Packet.mPlayerRef;
-	mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Meta );
+	auto* pActor = mWorld.CreateActor<TActorRocket>( Packet.mFiringLine, Meta );
+
+	//	wait for turn to end...
+	ChangeGameState( TGameState( TGameStates::PlayerTurnEnd, mGameState.mPlayer ), pActor );
 }
 
 void TGame::OnPacket(const TGamePacket_FireMissile& Packet)
@@ -554,7 +730,10 @@ void TGame::OnPacket(const TGamePacket_FireMissile& Packet)
 	//	create rocket actor
 	TActorMeta Meta;
 	Meta.mOwnerPlayer = Packet.mPlayerRef;
-	mWorld.CreateActor<TActorMissile>( Packet.mFiringPath, Meta );
+	auto* pActor = mWorld.CreateActor<TActorMissile>( Packet.mFiringPath, Meta );
+
+	//	wait for turn to end...
+	ChangeGameState( TGameState( TGameStates::PlayerTurnEnd, mGameState.mPlayer ), pActor );
 }
 
 
@@ -599,6 +778,13 @@ void TGame::OnPacket(const TGamePacket_CollisionProjectileAndAsteroidChunk& Pack
 	}
 }
 
+void TGame::OnPacket(const TGamePacket_ChangeTurn& Packet)
+{
+	//	change state
+	int PlayerIndex = mPlayers.FindIndex( Packet.mNextPlayer );
+	ChangeGameState( TGameState( TGameStates::PlayerTurn, Packet.mNextPlayer ) );
+}
+
 TPlayer* TGame::GetPlayer(TActorRef ActorRef)
 {
 	//	grab the actor...
@@ -636,41 +822,87 @@ ofLine2 TPlayerDrag::GetWorldDragLine(TWorld& World,TGame& Game) const
 }
 
 
-//	current player (though may not have any control)
-TRef TGame::GetCurrentPlayer() const
-{
-	switch ( mGameState )
-	{
-	case TGameState::PlayerOneTurn:
-	case TGameState::PlayerOneTurnEnd:
-		return mPlayers[0].mRef;
-
-	case TGameState::PlayerTwoTurn:
-	case TGameState::PlayerTwoTurnEnd:
-		return mPlayers[1].mRef;
-	}
-
-	assert(false);
-	return TRef();
-}
 
 //	current player with control (invalid if cannot control)
 TRef TGame::GetCurrentControlPlayer() const
 {
-	switch ( mGameState )
+	switch ( mGameState.mState )
 	{
-	case TGameState::PlayerOneTurn:
-		return mPlayers[0].mRef;
+	case TGameStates::PlayerTurn:
+		return GetCurrentPlayer();
+	}
 
-	case TGameState::PlayerTwoTurn:
-		return mPlayers[1].mRef;
+	return TRef();
+}
+
+void TGame::UpdateState(float TimeStep)
+{
+	switch ( mGameState.mState )
+	{
+	case TGameStates::PlayerTurn:
+		//	update the countdown...
+		mTurnTime -= TimeStep;
+		if ( mTurnTime <= 0.f )
+		{
+			OnTurnTimeout();
+		}
+		break;
+
+	case TGameStates::PlayerTurnEnd:
+		//	waiting for rocket etc to die...
+		if ( mTurnEnder )
+		{
+			if ( !mTurnEnder->Update(TimeStep,*this) )
+				mTurnEnder.reset();
+		}
+
+		if ( !mTurnEnder )
+			SetNextPlayerTurn();
+		break;
+
+	case TGameStates::Init:
+	case TGameStates::ChangingState:
+		//	idling, waiting for packet dictation
+		break;
 
 	default:
 		assert(false);
-	case TGameState::PlayerOneTurnEnd:
-	case TGameState::PlayerTwoTurnEnd:
-		return TRef();
 	}
+}
+
+void TGame::SetNextPlayerTurn()
+{
+	//	todo: save game state here
+
+	int PlayerIndex = mPlayers.FindIndex( mGameState.mPlayer );
+	PlayerIndex = (PlayerIndex+1) % mPlayers.GetSize();
+	SoyRef NextPlayerRef = mPlayers[PlayerIndex].mRef;
+
+	//	send packet
+	TGamePacket_ChangeTurn Packet;
+	Packet.mNextPlayer = NextPlayerRef;
+	PushPacket( Packet );
+
+	//	set local state
+	ChangeGameState( TGameState( TGameStates::ChangingState, NextPlayerRef ) );
+}
+
+void TGame::OnTurnTimeout()
+{
+	//	check if user is doing a drag and end it prematurely...
+	if ( !mPendingDrags.IsEmpty() )
+	{
+		auto* pCurrentDrag = &mPendingDrags.GetBack();
+		if ( !pCurrentDrag->IsFinished() )
+		{
+			TGamePacket_EndDrag Packet;
+			Packet.mCurrentDragPlayer = pCurrentDrag->mPlayer;
+			PushPacket( Packet );
+		}
+	}
+	
+	//	end this turn
+	ChangeGameState( TGameState( TGameStates::PlayerTurnEnd, mGameState.mPlayer ) );
 }
 
 
