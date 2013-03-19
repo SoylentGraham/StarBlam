@@ -7,6 +7,7 @@ BufferString<100> TGamePackets::ToString(TGamePackets::Type Enum)
 	{
 		case FireRocket:		return "FireRocket";
 		case FireMissile:		return "FireMissile";
+		case EndLaserBeam:		return "EndLaserBeam";
 		case Collision_ProjectileAndPlayer:		return "Collision_ProjectileAndPlayer";
 		case Collision_ProjectileAndSentry:		return "Collision_ProjectileAndSentry";
 		case Collision_ProjectileAndAsteroidChunk:		return "Collision_ProjectileAndAsteroidChunk";
@@ -15,6 +16,9 @@ BufferString<100> TGamePackets::ToString(TGamePackets::Type Enum)
 		case UpdateDrag:		return "UpdateDrag";
 		case EndDrag:			return "EndDrag";
 	};
+
+	assert(false);
+	return "???";
 }
 
 void TGamePackets::GetArray(ArrayBridge<TGamePackets::Type>& Array)

@@ -10,22 +10,31 @@ class TGame;
 class TRaycast
 {
 public:
+	TRaycast(const ofShapeCapsule2& Capsule) :
+		mCapsule	( Capsule )
+	{
+	}
 	TRaycast(const vec2f& Pos,const vec2f& Normal) :
-		mPosition	( Pos ),
-		mNormal		( Normal )
+		mCapsule	( ofLine2( Pos, Pos+Normal ), 0.01f )
 	{
 	}
 
+	void				IgnoreCollisionWith(TActor* Actor,TWorld& World)	{	if ( Actor )	IgnoreCollisionWith( *Actor, World );	}
+	void				IgnoreCollisionWith(TActor& Actor,TWorld& World);	//	ignore actor and it's children
+
 public:
-	vec2f	mPosition;
-	vec2f	mNormal;
+	ofShapeCapsule2		mCapsule;
+	Array<TActorRef>	mIgnoreList;	//	ignore collision with these actors
 };
 
 class TRaycastResult
 {
 public:
-	vec2f		mIntersection;
-	TActorRef	mActor;			//	first actor we hit
+	bool			IsValid() const	{	return mIntersection.IsValid();	}
+
+public:
+	TIntersection	mIntersection;
+	TActorRef		mActor;			//	actor we hit
 };
 
 //----------------------------------------------
@@ -61,7 +70,7 @@ protected:	//	high level
 	virtual bool		CanCollide(const TActor& a,const TActor& b)=0;
 
 private:
-	void				DoCollisions(Array<TCollisionActor>& CollisionActors);
+	void				DoCollisions();
 	TCollision			PopCollision();
 	
 	void				Disconnect(TActor& Actor);			//	remove all parent/child links and add to destroy list

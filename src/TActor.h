@@ -356,6 +356,8 @@ public:
 	virtual void				SetState(TActorSentryState::Type State);
 	virtual Array<TActorRef>	GetChildren() const;
 
+	bool						IsLaserBeamIdle(TWorld& World) const;
+
 public:
 	TActorRef				mLaserBeam;
 };
@@ -366,10 +368,11 @@ public:
 	TActorLaserBeam(const TActorMeta& ActorMeta,TWorld& World);
 
 	virtual ofColour		GetColour() const			{	return ofColour( 255,90,220 );	}
-	virtual void			Render(float TimeStep,const TRenderSettings& RenderSettings);
 	virtual bool			Update(float TimeStep,TWorld& World);
 
-	ofLine2					GetWorldBeamLine() const;
+	bool					HasRetracted() const;
+	ofShapeCapsule2			GetWorldBeam() const;
+	void					UpdateCollisionShape();
 
 public:
 	bool					mActive;

@@ -58,18 +58,56 @@ void TComCollision::Render(const TRenderSettings& RenderSettings,const TCollisio
 		ofFill();
 	ofSetColor( Material.mColour );
 
+	auto& Polygon = WorldShape.GetPolygon();
+	auto& Capsule = WorldShape.GetCapsule();
+	auto& Circle = WorldShape.GetCircle();
+
 	//	if the polygon is valid, that takes precendent
-	if ( WorldShape.mPolygon.IsValid() )
+	if ( Polygon.IsValid() )
 	{
-		vec3f a( WorldShape.mPolygon.mTriangle[0], Material.mZ );
-		vec3f b( WorldShape.mPolygon.mTriangle[1], Material.mZ );
-		vec3f c( WorldShape.mPolygon.mTriangle[2], Material.mZ );
+		vec3f a( Polygon.mTriangle[0], Material.mZ );
+		vec3f b( Polygon.mTriangle[1], Material.mZ );
+		vec3f c( Polygon.mTriangle[2], Material.mZ );
 		ofTriangle( a, b, c );
 	}
-	else if ( WorldShape.mCircle.IsValid() )
+	else if ( Capsule.IsValid() )
 	{
-		vec3f Pos( WorldShape.mCircle.mPosition, Material.mZ );
-		ofCircle( Pos, WorldShape.mCircle.mRadius );
+		//	generate triangle points
+		float mRadius = Capsule.mRadius;
+		ofLine2 Line = Capsule.mLine;
+		vec2f Normal = Line.GetNormal();
+		vec2f Right = Normal.getPerpendicular();
+		float z = Material.mZ;
+
+		//	BL TL TR BR (bottom = start)
+		vec3f Quad_BL( Line.mStart - (Right*mRadius), z );
+		vec3f Quad_TL( Line.mEnd - (Right*mRadius), z );
+		vec3f Quad_TR( Line.mEnd + (Right*mRadius), z );
+		vec3f Quad_BR( Line.mStart + (Right*mRadius), z );
+
+		ofLine( Quad_BL, Quad_TL );
+		ofLine( Quad_BR, Quad_TR );
+		ofLine( Line.mStart, Line.mEnd );
+		ofRect( Line.mStart, mRadius/4.f, mRadius/4.f );
+		//ofCircle( Line.mStart, mRadius );
+		//ofCircle( Line.mEnd, mRadius );
+
+		//	http://digerati-illuminatus.blogspot.co.uk/2008/05/approximating-semicircle-with-cubic.html
+		vec3f BLControl = Quad_BL - (Normal * mRadius * 4.f/3.f) + (Right * mRadius * 0.10f );
+		vec3f BRControl = Quad_BR - (Normal * mRadius * 4.f/3.f) - (Right * mRadius * 0.10f );
+		vec3f TLControl = Quad_TL + (Normal * mRadius * 4.f/3.f) + (Right * mRadius * 0.10f );
+		vec3f TRControl = Quad_TR + (Normal * mRadius * 4.f/3.f) - (Right * mRadius * 0.10f );
+		BLControl.z = 
+		BRControl.z =
+		TLControl.z = 
+		TRControl.z = z;
+		ofBezier( Quad_BL, BLControl, BRControl, Quad_BR );
+		ofBezier( Quad_TL, TLControl, TRControl, Quad_TR );
+	}
+	else if ( Circle.IsValid() )
+	{
+		vec3f Pos( Circle.mPosition, Material.mZ );
+		ofCircle( Pos, Circle.mRadius );
 	}
 	else
 	{
@@ -89,7 +127,7 @@ ofShapeCircle2 TComGravity::GetWorldGravityShape(const TTransform2& WorldTransfo
 		//	base it on the collision shape
 		auto* pCollision = GetComponent<TComCollision>();
 		if ( pCollision )
-			SetLocalGravityShape( pCollision->mShape.mCircle );
+			SetLocalGravityShape( pCollision->mShape.GetCircle() );
 	}
 
 	ofShapeCircle2 Circle = mLocalShape;

@@ -131,6 +131,20 @@ public:
 	TActorRef	mActor;
 };
 
+class TGameTurnEnder_LaserBeamFinish : public TGameTurnEnder
+{
+public:
+	TGameTurnEnder_LaserBeamFinish(const TActorSentryLaserBeam& Actor) :
+		mSentryLaserBeam	( Actor.GetRef() )
+	{
+	}
+
+	virtual bool	Update(float TimeStep,TGame& Game);
+
+public:
+	TActorRef	mSentryLaserBeam;
+};
+
 
 class TGameState
 {
@@ -204,12 +218,14 @@ protected:
 	void			OnTurnTimeout();					//	force end of a turn when time runs out
 	void			ChangeGameState(const TGameState& NewGameState,TActorRef WaitForActorDeath);
 	void			ChangeGameState(const TGameState& NewGameState,TActor* pWaitForActorDeath=NULL);
+	void			ChangeGameState(const TGameState& NewGameState,ofPtr<TGameTurnEnder> pEnder);
 
 	//	real
 	void			UpdateGamePackets();
 	bool			OnPacket(const SoyPacketContainer& Packet);
 	void			OnPacket(const TGamePacket_FireRocket& Packet);
 	void			OnPacket(const TGamePacket_FireMissile& Packet);
+	void			OnPacket(const TGamePacket_EndLaserBeam& Packet);
 	void			OnPacket(const TGamePacket_CollisionProjectileAndPlayer& Packet);
 	void			OnPacket(const TGamePacket_CollisionProjectileAndSentry& Packet);
 	void			OnPacket(const TGamePacket_CollisionProjectileAndAsteroidChunk& Packet);

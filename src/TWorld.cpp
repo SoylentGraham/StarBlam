@@ -25,7 +25,6 @@ void TWorld::Update(float TimeStep)
 {
 	RealDestroy();
 
-	Array<TCollisionActor> CollisionActors;
 
 	//	update actors (physics etc)
 	for ( int a=mActors.GetSize()-1;	a>=0;	a-- )
@@ -36,21 +35,29 @@ void TWorld::Update(float TimeStep)
 			DestroyActor( Actor );
 			continue;
 		}
-
-		TCollisionActor ColActor( Actor );
-		if ( ColActor.IsValid() )
-			CollisionActors.PushBack( ColActor );
 	}
 
-	DoCollisions( CollisionActors );
+	DoCollisions();
 }
 
 
 
 
 
-void TWorld::DoCollisions(Array<TCollisionActor>& CollisionActors)
+void TWorld::DoCollisions()
 {
+	//	gr: replace with collision component iterator
+	Array<TCollisionActor> CollisionActors;
+	for ( int a=0;	a<mActors.GetSize();	a++ )
+	{
+		auto& Actor = *mActors[a];
+		TCollisionActor ColActor( Actor );
+		if ( !ColActor.IsValid() )
+			continue;
+		
+		CollisionActors.PushBack( ColActor );
+	}
+
 	//	make up test collisions
 	Array<TCollisionTest> CollisionTests;
 	for ( int a=0;	a<CollisionActors.GetSize();	a++ )
@@ -169,7 +176,52 @@ TCollision TWorld::PopCollision()
 bool TWorld::DoRaycast(const TRaycast& Raycast,TRaycastResult& Result)
 {
 	//	ray cast against every actor with a collisionshape
-	return false;
+	//	gr: replace with collision component iterator
+	Array<TCollisionActor> CollisionActors;
+	for ( int a=0;	a<mActors.GetSize();	a++ )
+	{
+		auto& Actor = *mActors[a];
+		if ( Raycast.mIgnoreList.Find( Actor.GetRef() ) )
+			continue;
+
+		TCollisionActor ColActor( Actor );
+		if ( !ColActor.IsValid() )
+			continue;
+		
+		CollisionActors.PushBack( ColActor );
+	}
+
+	TRaycastResult& BestResult = Result;
+	float BestDistanceFromStartSq;
+
+	//	execute tests
+	for ( int a=0;	a<CollisionActors.GetSize();	a++ )
+	{
+		TCollisionActor& ColActor = CollisionActors[a];
+
+		//	check for collision
+		TIntersection Intersection;
+		if ( !SoyPhysics::GetIntersection( Raycast.mCapsule, ColActor.mShape, Intersection ) )
+		{
+			continue;
+		}
+
+		TRaycastResult TestResult;
+		TestResult.mIntersection = Intersection;
+		TestResult.mActor = ColActor.mActor;
+
+		//	gr: check distance from start (t=0) of capsule
+		float IntersectionDistanceSq = (Intersection.mCollisionPointB - Raycast.mCapsule.mLine.mStart).lengthSquared();
+
+		//	better than current 
+		if ( !BestResult.IsValid() || IntersectionDistanceSq < BestDistanceFromStartSq )
+		{
+			BestResult = TestResult;
+			BestDistanceFromStartSq = IntersectionDistanceSq;
+		}
+	}
+	
+	return BestResult.IsValid();
 }
 
 
@@ -217,3 +269,17 @@ void TWorld::UpdateCollisions(TGame& Game)
 }
 
 
+
+
+void TRaycast::IgnoreCollisionWith(TActor& Actor,TWorld& World)
+{	
+	mIgnoreList.PushBack( Actor.GetRef() );	
+	Array<TActorRef> Children = Actor.GetChildren();
+
+	//	recurse
+	for ( int c=0;	c<Children.GetSize();	c++ )
+	{
+		auto* pChild = World.GetActor( Children[c] );
+		IgnoreCollisionWith( pChild, World );
+	}
+}

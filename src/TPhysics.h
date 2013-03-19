@@ -73,6 +73,33 @@ public:
 namespace SoyPhysics
 {
 	bool	GetIntersection(const TCollisionShape& ShapeA,const TCollisionShape& ShapeB,TIntersection& Intersection);
+
+	template<class SHAPEA,class SHAPEB>
+	inline bool GetIntersection(const SHAPEA& ShapeA,const SHAPEB& ShapeB,TIntersection& Intersection)
+	{
+		Intersection = ofShape::GetIntersection( ShapeA, ShapeB );
+		return Intersection;
+	}
+
+	template<class SHAPEA>
+	inline bool GetIntersection(const SHAPEA& ShapeA,const TCollisionShape& ShapeB,TIntersection& Intersection)
+	{
+		//	what do we have to work with...
+		auto& PolygonB = ShapeB.GetPolygon();
+		auto& CapsuleB = ShapeB.GetCapsule();
+		auto& CircleB = ShapeB.GetCircle();
+
+		if ( PolygonB.IsValid() )
+			return GetIntersection( ShapeA, PolygonB, Intersection );
+	
+		if ( CapsuleB.IsValid() )
+			return GetIntersection( ShapeA, CapsuleB, Intersection );
+	
+		if ( CircleB.IsValid() )
+			return GetIntersection( ShapeA, CircleB, Intersection );
+
+		return false;
+	}
 };
 
 

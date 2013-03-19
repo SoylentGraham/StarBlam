@@ -68,12 +68,30 @@ bool TStarWorld::HandleCollision(const TCollision& Collision,TGame& Game,TActor&
 	return false;
 }
 
+bool IsTypePair(TActors::Type TypeA,TActors::Type TypeB,const TActor& a,const TActor& b)
+{
+	if ( a.GetType() == TypeA && b.GetType() == TypeB )
+		return true;
+
+	//	check reverse
+	if ( a.GetType() == TypeB && b.GetType() == TypeA )
+		return true;
+
+	return false;
+}
+
 bool TStarWorld::CanCollide(const TActor& a,const TActor& b)
 {
-	bool aIsAsteroid = ( a.GetType() == TActors::Asteroid || a.GetType() == TActors::AsteroidChunk );
-	bool bIsAsteroid = ( b.GetType() == TActors::Asteroid || b.GetType() == TActors::AsteroidChunk );
-	if ( aIsAsteroid && bIsAsteroid )
-		return false;
+	if ( IsTypePair( TActors::Asteroid, TActors::AsteroidChunk, a, b ) )	return false;
+	if ( IsTypePair( TActors::Asteroid, TActors::Asteroid, a, b ) )			return false;
+	if ( IsTypePair( TActors::AsteroidChunk, TActors::AsteroidChunk, a, b ) )	return false;
+	
+	if ( IsTypePair( TActors::DeathStar, TActors::SentryLaserBeam, a, b ) )	return false;
+	if ( IsTypePair( TActors::DeathStar, TActors::SentryMissile, a, b ) )	return false;
+	if ( IsTypePair( TActors::DeathStar, TActors::SentryRocket, a, b ) )	return false;
+	if ( IsTypePair( TActors::DeathStar, TActors::SentryRotation, a, b ) )	return false;
+
+	if ( IsTypePair( TActors::LaserBeam, TActors::LaserBeam, a, b ) )	return false;
 
 	return true;
 }

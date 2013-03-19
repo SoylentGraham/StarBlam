@@ -57,6 +57,21 @@ bool TGameTurnEnder_ActorDeath::Update(float TimeStep,TGame& Game)
 		return false;
 }
 
+bool TGameTurnEnder_LaserBeamFinish::Update(float TimeStep,TGame& Game)
+{
+	//	get actor
+	auto* pActor = Game.mWorld.GetActor<TActorSentryLaserBeam>( mSentryLaserBeam );
+	if ( !pActor )
+		return false;
+
+	//	check it's internal graphic state etc
+	if ( !pActor->IsLaserBeamIdle(Game.mWorld) )
+		return true;
+	
+	//	finish
+	return false;
+}
+
 
 TGame::TGame(const TGameMeta& GameMeta) :
 	mGameState		( TGameStates::Init ),
@@ -376,7 +391,7 @@ bool TGame::TryNewDrag(const SoyGesture& Gesture)
 		auto& Sentry = *Sentrys[i];
 
 		//	get screen-collision shape of sentry
-		ofShapeCircle2 SentryWorldShape = Sentry.GetWorldCollisionShape().mCircle;
+		ofShapeCircle2 SentryWorldShape = Sentry.GetWorldCollisionShape().GetCircle();
 		ofShapeCircle2 SentryShape = WorldToScreen( SentryWorldShape, Sentry.GetWorldPosition3().z );
 
 		//	get distance from finger...
@@ -450,10 +465,10 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 		return;
 	}
 	auto& Sentry = *pSentry;
-	Sentry.SetState( TActorSentryState::Inactive );
 
 	if ( Sentry.GetType() == TActors::SentryRocket )
 	{
+		Sentry.SetState( TActorSentryState::Inactive );
 		//	launch rocket if there was enough of a drag.
 		//	gr: should be a 2D test?
 		ofLine2 DragLine = Drag.GetWorldDragLine( mWorld, *this );
@@ -465,9 +480,9 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 		Packet.mPlayerRef = Drag.mPlayer;
 		PushPacket( Packet );
 	}
-
-	if ( Sentry.GetType() == TActors::SentryMissile )
+	else if ( Sentry.GetType() == TActors::SentryMissile )
 	{
+		Sentry.SetState( TActorSentryState::Inactive );
 		//	launch rocket if there was enough of a path
 		//	gr: shouldn't really mix this... the path should be in the drag, and not rely on the actor...
 		ofShapePath2 Path;
@@ -484,7 +499,18 @@ void TGame::OnDragEnded(TPlayerDrag& Drag)
 		Packet.mPlayerRef = Drag.mPlayer;
 		PushPacket( Packet );
 	}
-	
+	else if ( Sentry.GetType() == TActors::SentryLaserBeam )
+	{
+		//	include this for local?
+		//Sentry.SetState( TActorSentryState::Inactive );	
+		TGamePacket_EndLaserBeam Packet;
+		Packet.mSentry = Sentry.GetRef();
+		PushPacket( Packet );
+	}
+	else
+	{
+		Sentry.SetState( TActorSentryState::Inactive );
+	}
 	
 	//	clean up drag graphics 
 	if ( Drag.mActorDrag  )
@@ -679,9 +705,12 @@ bool TGame::OnPacket(const SoyPacketContainer& Packet)
 	{
 		case_OnPacket( TGamePacket_FireRocket );
 		case_OnPacket( TGamePacket_FireMissile );
+		case_OnPacket( TGamePacket_EndLaserBeam );		
+
 		case_OnPacket( TGamePacket_CollisionProjectileAndPlayer );
 		case_OnPacket( TGamePacket_CollisionProjectileAndSentry );
 		case_OnPacket( TGamePacket_CollisionProjectileAndAsteroidChunk );
+
 		case_OnPacket( TGamePacket_ChangeTurn );
 		case_OnPacket( TGamePacket_StartDrag );
 		case_OnPacket( TGamePacket_EndDrag );
@@ -701,8 +730,16 @@ void TGame::ChangeGameState(const TGameState& NewGameState,TActor* pWaitForActor
 
 void TGame::ChangeGameState(const TGameState& NewGameState,TActorRef WaitForActorDeath)
 {
+	ofPtr<TGameTurnEnder> pEnder;
 	if ( WaitForActorDeath.IsValid() )
-		mTurnEnder = ofPtr<TGameTurnEnder>( new TGameTurnEnder_ActorDeath( WaitForActorDeath ) );
+		pEnder = ofPtr<TGameTurnEnder>( new TGameTurnEnder_ActorDeath( WaitForActorDeath ) );
+
+	ChangeGameState( NewGameState, pEnder );
+}
+
+void TGame::ChangeGameState(const TGameState& NewGameState,ofPtr<TGameTurnEnder> pEnder)
+{
+	mTurnEnder = pEnder;
 
 	//	set new state
 	mGameState = NewGameState;
@@ -734,6 +771,22 @@ void TGame::OnPacket(const TGamePacket_FireMissile& Packet)
 
 	//	wait for turn to end...
 	ChangeGameState( TGameState( TGameStates::PlayerTurnEnd, mGameState.mPlayer ), pActor );
+}
+
+
+void TGame::OnPacket(const TGamePacket_EndLaserBeam& Packet)
+{
+	//	turn off the laser beam and go to next game state
+	auto* pSentry = mWorld.GetActor<TActorSentryLaserBeam>( Packet.mSentry );
+	
+	ofPtr<TGameTurnEnder> pEnder;
+	if ( pSentry )
+	{
+		pSentry->SetState( TActorSentryState::Inactive );
+		pEnder = ofPtr<TGameTurnEnder>( new TGameTurnEnder_LaserBeamFinish( *pSentry ) );
+	}
+
+	ChangeGameState( TGameState( TGameStates::PlayerTurnEnd, mGameState.mPlayer ), pEnder );
 }
 
 
@@ -817,7 +870,7 @@ ofLine2 TPlayerDrag::GetWorldDragLine(TWorld& World,TGame& Game) const
 
 	float z = pSentry->GetZ();
 	vec2f WorldDragTo = this->GetWorldDragTo( Game, z );
-	ofShapeCircle2 SentryShape = pSentry->GetWorldCollisionShape().mCircle;
+	ofShapeCircle2 SentryShape = pSentry->GetWorldCollisionShape().GetCircle();
 	return ofLine2( SentryShape.mPosition, WorldDragTo );
 }
 

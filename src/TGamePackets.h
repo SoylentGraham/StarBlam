@@ -11,6 +11,7 @@ namespace TGamePackets
 	{
 		FireRocket,
 		FireMissile,
+		EndLaserBeam,			//	wait for beam to finish before going to next player
 		Collision_ProjectileAndPlayer,
 		Collision_ProjectileAndSentry,
 		Collision_ProjectileAndAsteroidChunk,
@@ -62,6 +63,13 @@ public:
 
 template<> bool Soy::ToRawData(Array<char>& Data,const TGamePacket_FireMissile& Packet);
 template<> bool Soy::FromRawData(TGamePacket_FireMissile& Packet,const Array<char>& Data);
+
+
+class TGamePacket_EndLaserBeam : public TGamePacketDerivitive<TGamePackets::EndLaserBeam>
+{
+public:
+	TActorRef	mSentry;
+};
 
 
 class TGamePacket_CollisionProjectileAndPlayer : public TGamePacketDerivitive<TGamePackets::Collision_ProjectileAndPlayer>

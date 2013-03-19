@@ -25,12 +25,14 @@ bool TStarWorld::TryCollision(const TCollision& Collision,TGame& Game,TActor& Ac
 {
 	if ( ActorA == ACTORA::TYPE && ActorB == ACTORB::TYPE )
 	{
-		OnCollision( Collision, Game, static_cast<ACTORA&>( ActorA ), static_cast<ACTORB&>( ActorB ) );
+		OnCollision( Collision, Game, dynamic_cast<ACTORA&>( ActorA ), dynamic_cast<ACTORB&>( ActorB ) );
 		return true;
 	}
-	if ( ActorA == ACTORB::TYPE && ActorA == ACTORB::TYPE )
+
+	//	try swapped types (note OnCollision swaps too, cast vs name)
+	if ( ActorA == ACTORB::TYPE && ActorB == ACTORA::TYPE )
 	{
-		OnCollision( Collision, Game, static_cast<ACTORB&>( ActorB ), static_cast<ACTORA&>( ActorA ) );
+		OnCollision( Collision, Game, dynamic_cast<ACTORA&>( ActorB ), dynamic_cast<ACTORB&>( ActorA ) );
 		return true;
 	}
 	return false;

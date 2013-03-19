@@ -19,7 +19,7 @@ TActor::TActor(const TActorMeta& Meta)
 ofShapeCircle2 TActor::GetTreeLocalCollisionShape(TWorld& World) const
 {
 	//	start with our shape...
-	ofShapeCircle2 Shape = GetLocalCollisionShape().mCircle;
+	ofShapeCircle2 Shape = GetLocalCollisionShape().GetCircle();
 
 	//	accumulate children's shapes
 	Array<TActorRef> Children = GetChildren();
@@ -299,8 +299,8 @@ TActorDeathStar::TActorDeathStar(const TActorMeta& Meta,TWorld& World) :
 
 	//	make a collisoin component
 	auto& Collision = AddComponent<TComCollision>();
-	Collision.mShape.mCircle = ofShapeCircle2( DEATHSTAR_SIZE );
-	ofShapeCircle2 DeathStarShape = GetWorldCollisionShape().mCircle;
+	Collision.mShape.SetCircle( ofShapeCircle2( DEATHSTAR_SIZE ) );
+	ofShapeCircle2 DeathStarShape = GetWorldCollisionShape().GetCircle();
 	assert( DeathStarShape.IsValid() );
 
 	auto& Transform = AddComponent<TComTransform>();
@@ -479,14 +479,14 @@ vec2f TActorProjectile::GetGravityForce(TWorld& World)
 		ofShapeCircle2 GravityShape = Gravity.GetWorldGravityShape( pActor->GetWorldTransform() );
 		if ( !GravityShape.IsValid() )
 			continue;
-		if ( !GravityShape.IsInside( RocketShape.mCircle ) )
+		if ( !GravityShape.IsInside( RocketShape.GetCircle() ) )
 			continue;
 		
-		float MaxDistance = RocketShape.mCircle.mRadius + GravityShape.mRadius;
+		float MaxDistance = RocketShape.GetCircle().mRadius + GravityShape.mRadius;
 
 		//	draw in based on size of gravity field
 		vec2f DirToGravity = GravityShape.GetCenter() - RocketShape.GetCenter();
-		float LengthToGravity = DirToGravity.length() - RocketShape.mCircle.mRadius;
+		float LengthToGravity = DirToGravity.length() - RocketShape.GetCircle().mRadius;
 		float FactorToGravity = ( LengthToGravity / MaxDistance );
 		FactorToGravity *= FactorToGravity;
 		FactorToGravity = 1.f - FactorToGravity;	//	inverse so closest is 1
@@ -521,7 +521,7 @@ TActorRocket::TActorRocket(const ofLine2& FiringLine,const TActorMeta& ActorMeta
 	auto& Transform = AddComponent<TComTransform>();
 
 	auto& Collision = AddComponent<TComCollision>();
-	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
+	Collision.mShape.SetCircle( ofShapeCircle2( ROCKET_SIZE ) );
 
 	SetLocalPosition( FiringLine.mStart );
 }
@@ -595,7 +595,7 @@ TActorMissile::TActorMissile(const ofShapePath2& FiringPath,const TActorMeta& Ac
 {
 	auto& Transform = AddComponent<TComTransform>();
 	auto& Collision = AddComponent<TComCollision>();
-	Collision.mShape.mCircle = ofShapeCircle2( ROCKET_SIZE );
+	Collision.mShape.SetCircle( ofShapeCircle2( ROCKET_SIZE ) );
 
 	SetLocalPosition( mPath.GetPosition(mPathDistance) );
 }
@@ -665,7 +665,7 @@ bool TActorMissile::Update(float TimeStep,TWorld& World)
 TActorExplosion::TActorExplosion(const vec2f& Position,TWorld& World)
 {
 	auto& Collision = AddComponent<TComCollision>();
-	Collision.mShape.mCircle = ofShapeCircle2( EXPLOSION_INITIAL_SIZE );
+	Collision.mShape.SetCircle( ofShapeCircle2( EXPLOSION_INITIAL_SIZE ) );
 
 	auto& Transform = AddComponent<TComTransform>();
 	SetLocalPosition( Position );
@@ -677,11 +677,14 @@ bool TActorExplosion::Update(float TimeStep,TWorld& World)
 	auto* Collision = GetComponent<TComCollision>();
 	if ( Collision )
 	{
-		auto& Size = Collision->mShape.mCircle.mRadius;
+		ofShapeCircle2 NewCircle = Collision->mShape.GetCircle();
+		float& Size = NewCircle.mRadius;
 		Size += EXPLOSION_GROW_RATE * TimeStep;
+		Size = ofMin( Size, EXPLOSION_MAX_SIZE );
+		Collision->mShape.SetCircle( NewCircle );
 
 		//	die when too big
-		if ( Size > EXPLOSION_MAX_SIZE )
+		if ( Size >= EXPLOSION_MAX_SIZE )
 			return false;
 	}
 
@@ -698,7 +701,7 @@ TActorSentry::TActorSentry(const TActorMeta& ActorMeta) :
 
 	//	make a collision component
 	auto& Collision = AddComponent<TComCollision>();
-	Collision.mShape.mCircle = ofShapeCircle2( SENTRY_RADIUS );
+	Collision.mShape.SetCircle( ofShapeCircle2( SENTRY_RADIUS ) );
 }
 
 
@@ -737,6 +740,25 @@ Array<TActorRef> TActorSentryLaserBeam::GetChildren() const
 	return Children;
 }
 
+bool TActorSentryLaserBeam::IsLaserBeamIdle(TWorld& World) const
+{
+	if ( GetState() != TActorSentryState::Inactive )
+		return false;
+	
+	TActorLaserBeam* LaserBeam = World.GetActor<TActorLaserBeam>( mLaserBeam );
+	if ( !LaserBeam )
+		return true;
+
+	if ( LaserBeam->mActive )
+		return false;
+
+	//	check it's retracted
+	if ( !LaserBeam->HasRetracted() )
+		return false;
+
+	//	laser beam is idle
+	return true;
+}
 
 
 
@@ -744,35 +766,31 @@ TActorLaserBeam::TActorLaserBeam(const TActorMeta& ActorMeta,TWorld& World) :
 	mActive				( false ),
 	mLength				( LASERBEAM_MIN_LENGTH )
 {
+	auto& Collision = AddComponent<TComCollision>();
+	UpdateCollisionShape();
 }
 
-void TActorLaserBeam::Render(float TimeStep,const TRenderSettings& RenderSettings)
+void TActorLaserBeam::UpdateCollisionShape()
 {
-	TRenderSceneScope Scene(__FUNCTION__);
-	ofFill();
-	ofSetColor( GetColour(), 0.5f );
+	auto* pCollision = GetComponent<TComCollision>();
+	assert( pCollision );
+	if ( !pCollision )
+		return;
 	
-	//	generate triangle points
-	float mWidth = LASERBEAM_WIDTH;
-	ofLine2 Line = GetWorldBeamLine();
-	vec2f Normal = Line.GetNormal();
-	vec2f Right = Normal.getPerpendicular();
 
-	float z = GetZ();
-	BufferArray<vec3f,4> TrianglePoints;
-	TrianglePoints.PushBack( vec3f( Line.mStart - (Right*mWidth), z ) );
-	TrianglePoints.PushBack( vec3f( Line.mEnd - (Right*mWidth), z ) );
-	TrianglePoints.PushBack( vec3f( Line.mEnd + (Right*mWidth), z ) );
-	TrianglePoints.PushBack( vec3f( Line.mStart + (Right*mWidth), z ) );
+	ofLine2 BeamLine;
+	BeamLine.mStart = GetLocalPosition2();
+	BeamLine.mEnd = ofVec2f( 0, -mLength );
 
-	ofTriangle( TrianglePoints[0], TrianglePoints[1], TrianglePoints[2] );
-	ofTriangle( TrianglePoints[2], TrianglePoints[3], TrianglePoints[0] );
+	pCollision->mShape.SetCapsule( ofShapeCapsule2( BeamLine, LASERBEAM_WIDTH ) );
 }
+
+
 
 bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
 {
 	//	idle
-	if ( !mActive && mLength <= LASERBEAM_MIN_LENGTH )
+	if ( HasRetracted() )
 		return true;
 
 	//	retract
@@ -781,6 +799,7 @@ bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
 		//	retract
 		mLength -= LASERBEAM_RETRACT_SPEED * TimeStep;
 		mLength = ofMax( mLength, LASERBEAM_MIN_LENGTH );
+		UpdateCollisionShape();
 		return true;
 	}
 
@@ -788,15 +807,37 @@ bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
 	TRaycastResult Raycast;
 	vec2f Position = GetWorldPosition2();
 
-	//	ray extends forever!
-	ofLine2 BeamLine = GetWorldBeamLine();
-	vec2f Normal = BeamLine.GetNormal();
-	if ( !World.DoRaycast( TRaycast( BeamLine.mStart, Normal ), Raycast ) )
+	//	beam we're raycasting with is very long
+	ofShapeCapsule2 Beam = GetWorldBeam();
+	Beam.mLine.SetLength( 2000.f );
+
+	TRaycast Ray( Beam );
+
+	//	get death star as parent
+	TActor* Parent = this;
+	while ( Parent && Parent->GetType() != TActors::DeathStar )
 	{
-		Raycast.mIntersection = Position + (Normal * 2000.f);
+		auto* pParentParent = World.GetActor( Parent->GetParent() );
+		if ( !pParentParent )
+			break;
+
+		Parent = pParentParent;
+	}
+	Ray.IgnoreCollisionWith( Parent, World );
+	assert( !Ray.mIgnoreList.IsEmpty() );
+
+	if ( !World.DoRaycast( Ray, Raycast ) )
+	{
+		//	make beam-into-nothing-in-space line very long...
+		auto& BeamLine = Beam.mLine;
+		Raycast.mIntersection.mCollisionPointB = BeamLine.mEnd;
 	}
 
-	float EndLength = (Raycast.mIntersection - Position).length();
+	float EndLength = (Raycast.mIntersection.mCollisionPointB - Position).length();
+
+	//	just in case something's a bit funny
+	if ( EndLength < LASERBEAM_MIN_LENGTH )
+		EndLength = LASERBEAM_MIN_LENGTH;
 
 	//	extend
 	if ( EndLength > mLength )
@@ -810,21 +851,28 @@ bool TActorLaserBeam::Update(float TimeStep,TWorld& World)
 	{
 		mLength = EndLength;
 	}
+	
+	UpdateCollisionShape();
 
 	//	heat up & kill the actor
 	return true;
 }
 
 
-ofLine2 TActorLaserBeam::GetWorldBeamLine() const	
+ofShapeCapsule2 TActorLaserBeam::GetWorldBeam() const	
 {
-	vec2f Pos = GetWorldPosition2();
+	//	get world collision shape
+	TCollisionShape WorldShape = GetWorldCollisionShape();
+	return WorldShape.GetCapsule();
+}
+	
+bool TActorLaserBeam::HasRetracted() const
+{
+	if ( !mActive && mLength <= LASERBEAM_MIN_LENGTH )
+		return true;
 
-	//	get rotation
-	auto WorldTransform = GetWorldTransform();
-	vec2f Normal = ofNormalFromAngle( WorldTransform.GetRotationDeg() );
-
-	return ofLine2( Pos, Pos + (Normal*mLength) );	
+	//	doing something
+	return false;
 }
 
 
