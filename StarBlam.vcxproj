@@ -54,7 +54,6 @@
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
-      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src;..\..\..\addons\ofxUI\src;..\..\..\addons\ofxSoylent\src;..\..\..\addons\ofxNetwork\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -77,7 +76,6 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
-      <DebugInformationFormat />
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src;;..\..\..\addons\ofxNetwork\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
