@@ -57,6 +57,8 @@ TStatePickMode::TStatePickMode(TApp& App) :
 
 void TStatePickMode::OnButtonClick(TFrontEndWidget::Type Button)
 {
+	mApp.mInput.CullGestures();
+
 	switch ( Button )
 	{
 	case TFrontEndWidget::PickLocal:
