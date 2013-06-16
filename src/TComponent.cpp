@@ -72,37 +72,7 @@ void TComCollision::Render(const TRenderSettings& RenderSettings,const TCollisio
 	}
 	else if ( Capsule.IsValid() )
 	{
-		//	generate triangle points
-		float mRadius = Capsule.mRadius;
-		ofLine2 Line = Capsule.mLine;
-		vec2f Normal = Line.GetNormal();
-		vec2f Right = Normal.getPerpendicular();
-		float z = Material.mZ;
-
-		//	BL TL TR BR (bottom = start)
-		vec3f Quad_BL( Line.mStart - (Right*mRadius), z );
-		vec3f Quad_TL( Line.mEnd - (Right*mRadius), z );
-		vec3f Quad_TR( Line.mEnd + (Right*mRadius), z );
-		vec3f Quad_BR( Line.mStart + (Right*mRadius), z );
-
-		ofLine( Quad_BL, Quad_TL );
-		ofLine( Quad_BR, Quad_TR );
-		ofLine( Line.mStart, Line.mEnd );
-		ofRect( Line.mStart, mRadius/4.f, mRadius/4.f );
-		//ofCircle( Line.mStart, mRadius );
-		//ofCircle( Line.mEnd, mRadius );
-
-		//	http://digerati-illuminatus.blogspot.co.uk/2008/05/approximating-semicircle-with-cubic.html
-		vec3f BLControl = Quad_BL - (Normal * mRadius * 4.f/3.f) + (Right * mRadius * 0.10f );
-		vec3f BRControl = Quad_BR - (Normal * mRadius * 4.f/3.f) - (Right * mRadius * 0.10f );
-		vec3f TLControl = Quad_TL + (Normal * mRadius * 4.f/3.f) + (Right * mRadius * 0.10f );
-		vec3f TRControl = Quad_TR + (Normal * mRadius * 4.f/3.f) - (Right * mRadius * 0.10f );
-		BLControl.z = 
-		BRControl.z =
-		TLControl.z = 
-		TRControl.z = z;
-		ofBezier( Quad_BL, BLControl, BRControl, Quad_BR );
-		ofBezier( Quad_TL, TLControl, TRControl, Quad_TR );
+		ofCapsule( Capsule, Material.mZ );
 	}
 	else if ( Circle.IsValid() )
 	{
